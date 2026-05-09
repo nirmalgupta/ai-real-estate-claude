@@ -21,5 +21,7 @@ rm -f "${CLAUDE_DIR}/scripts/analyze_property.py"
 rm -f "${CLAUDE_DIR}/scripts/score_property.py"
 rm -f "${CLAUDE_DIR}/scripts/generate_pdf_report.py"
 rm -f "${CLAUDE_DIR}/scripts/mortgage_calculator.py"
+rm -f "${CLAUDE_DIR}/scripts/send_imessage.py"
+rm -f "${CLAUDE_DIR}/re_complete_config.json"
 
 echo "Done. (reportlab not removed — pip uninstall reportlab if you want)"

@@ -48,6 +48,9 @@ Then restart Claude Code.
 | `/real-estate-investment <address>` | Buy & hold / BRRRR / flip scenarios | `INVESTMENT-ANALYSIS.md` |
 | `/real-estate-market <address>` | Local market conditions | `MARKET-ANALYSIS.md` |
 | `/real-estate-report-pdf` | Convert latest analysis to PDF | `PROPERTY-REPORT-*.pdf` |
+| `/real-estate-complete <address>` | Full pipeline: analyze → PDF → iMessage to your phone | PDF + text |
+
+> **iMessage send is per-user.** `install.sh` prompts for your iMessage handle (phone or Apple ID email) and saves it to `~/.claude/re_complete_config.json` — never committed to the repo. Skip the prompt to disable sending; the PDF will still be generated.
 
 ## Architecture
 

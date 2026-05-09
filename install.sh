@@ -65,8 +65,32 @@ if command -v python3 >/dev/null 2>&1; then
     fi
 fi
 
+# iMessage recipient config (for /real-estate-complete)
+CONFIG_FILE="${CLAUDE_DIR}/re_complete_config.json"
+echo ""
+echo "iMessage send config (for /real-estate-complete)..."
+if [ -f "${CONFIG_FILE}" ] && grep -q '"imessage_to"' "${CONFIG_FILE}" 2>/dev/null; then
+    existing="$(python3 -c "import json; print(json.load(open('${CONFIG_FILE}'))['imessage_to'])" 2>/dev/null || echo '')"
+    echo "  Already configured: ${existing}"
+    echo "  (Edit ${CONFIG_FILE} to change.)"
+else
+    echo "  /real-estate-complete sends the report to your phone via iMessage."
+    echo "  Enter your iMessage handle (phone like +15551234567 or Apple ID email)."
+    echo "  Press Enter to skip — you can configure later."
+    read -r -p "  iMessage handle: " IMSG_HANDLE
+    if [ -n "${IMSG_HANDLE}" ]; then
+        printf '{"imessage_to": "%s"}\n' "${IMSG_HANDLE}" > "${CONFIG_FILE}"
+        chmod 600 "${CONFIG_FILE}"
+        echo "  + saved to ${CONFIG_FILE}"
+    else
+        echo "  - skipped. /real-estate-complete will save the PDF without sending."
+        echo "    To configure later:  echo '{\"imessage_to\": \"+15551234567\"}' > ${CONFIG_FILE}"
+    fi
+fi
+
 echo ""
 echo "Done. Restart Claude Code, then try:"
 echo ""
 echo "  /real-estate-analyze 1234 Main St, Austin, TX 78701"
+echo "  /real-estate-complete 1234 Main St, Austin, TX 78701   # full pipeline + iMessage"
 echo ""
