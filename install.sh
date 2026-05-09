@@ -47,11 +47,21 @@ done
 if command -v python3 >/dev/null 2>&1; then
     echo ""
     echo "Installing Python deps for PDF generation (optional)..."
-    if python3 -m pip install --quiet --user reportlab 2>/dev/null; then
+
+    # Already installed?
+    if python3 -c "import reportlab" 2>/dev/null; then
+        echo "  + reportlab (already installed)"
+    # Try the polite install first
+    elif python3 -m pip install --quiet --user reportlab 2>/dev/null; then
         echo "  + reportlab"
+    # macOS Python 3.12+ requires --break-system-packages for system pip
+    elif python3 -m pip install --quiet --user --break-system-packages reportlab 2>/dev/null; then
+        echo "  + reportlab (used --break-system-packages)"
     else
-        echo "  ! Could not install reportlab. PDF generation will fail until you run:"
-        echo "    pip install reportlab"
+        echo "  ! Could not install reportlab automatically."
+        echo "    PDF generation will fail until you run one of these:"
+        echo "      pip3 install --break-system-packages reportlab"
+        echo "      python3 -m venv ~/.claude/venv && ~/.claude/venv/bin/pip install reportlab"
     fi
 fi
 
