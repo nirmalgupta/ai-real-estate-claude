@@ -1,0 +1,27 @@
+# Generated reports / analysis output
+PROPERTY-ANALYSIS.md
+PROPERTY-REPORT-*.pdf
+COMPS-ANALYSIS.md
+RENTAL-ANALYSIS.md
+NEIGHBORHOOD-ANALYSIS.md
+INVESTMENT-ANALYSIS.md
+MARKET-ANALYSIS.md
+agent-*.md
+property_facts.json
+composite_score.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
