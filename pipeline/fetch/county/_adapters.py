@@ -42,3 +42,10 @@ _try_import("tx_galveston")       # 48167
 _try_import("fl_miami_dade")      # 12086
 _try_import("fl_broward")         # 12011
 _try_import("fl_palmbeach")       # 12099
+
+# Raleigh / Triangle metro (NC — disclosure state)
+_try_import("nc_wake")            # 37183
+_try_import("nc_durham")          # 37063
+_try_import("nc_orange")          # 37135
+_try_import("nc_chatham")         # 37037
+_try_import("nc_johnston")        # 37101
