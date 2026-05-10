@@ -26,7 +26,7 @@ Legend:
 | **NCES public schools** (Common Core of Data) | Every public school: enrollment, demographics, locale code. Note: ratings (GreatSchools/Niche) are paid; raw stats are free. | None | ✅ `pipeline.fetch.nces` |
 | **USGS Earthquake Hazard** | Probabilistic seismic risk by lat/lon. National Seismic Hazard Map. | None | 🔧 |
 | **NOAA Climate Normals** | 30-year temp/precip averages by station; useful for climate context. | None | 🔧 |
-| **NOAA SPC** (Storm Prediction Center) | Tornado/hail/wind reports historical archive. | None | 🔧 |
+| **NOAA SPC** (Storm Prediction Center) | Tornado/hail/wind reports historical archive. | None | ✅ `pipeline.fetch.noaa_spc` |
 | **EPA EJScreen** | Environmental justice screening: pollution exposure by tract. | None | 🔧 |
 | **EPA Superfund** (CERCLIS) | Active and historical Superfund sites by location. | None | 🔧 |
 | **BLS LAUS** (Local Area Unemployment Statistics) | Unemployment rate by county. | None | 🔧 |
