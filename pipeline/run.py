@@ -17,6 +17,7 @@ from pipeline.fetch.county import get_cad_source, supported_counties
 from pipeline.fetch.fema_nfhl import FemaNFHLSource
 from pipeline.fetch.hud_fmr import HudFmrSource
 from pipeline.fetch.movoto import MovotoSource
+from pipeline.fetch.nces import NCESSource
 from pipeline.wiki.builder import write_page
 
 DEFAULT_WIKI_ROOT = Path(__file__).resolve().parent.parent / "wiki"
@@ -50,6 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         FemaNFHLSource(),
         CensusACSSource(),
         HudFmrSource(),
+        NCESSource(),
         MovotoSource(listing_url=args.movoto_url),
     ]
 

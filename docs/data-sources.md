@@ -23,7 +23,7 @@ Legend:
 | **HUD Fair Market Rent** | Government's published rent benchmark by metro/county/bedroom count. Used by Section 8. Useful for rural/secondary markets where Zillow Rent Zestimate has thin data, and for sanity-checking listing aggregator rent estimates. | Free API key (`HUD_API_KEY` env var) | ✅ `pipeline.fetch.hud_fmr` |
 | **HUD CHAS** (Comprehensive Housing Affordability Strategy) | Housing cost burden, affordability by income tier. | None | 🔧 |
 | **FEMA NFIP claims** | Historical flood insurance claims by ZIP. Better proxy for "does this area actually flood" than the static flood zone. | None | 🔧 |
-| **NCES public schools** (Common Core of Data) | Every public school: enrollment, demographics, locale code. Note: ratings (GreatSchools/Niche) are paid; raw stats are free. | None | 🔧 |
+| **NCES public schools** (Common Core of Data) | Every public school: enrollment, demographics, locale code. Note: ratings (GreatSchools/Niche) are paid; raw stats are free. | None | ✅ `pipeline.fetch.nces` |
 | **USGS Earthquake Hazard** | Probabilistic seismic risk by lat/lon. National Seismic Hazard Map. | None | 🔧 |
 | **NOAA Climate Normals** | 30-year temp/precip averages by station; useful for climate context. | None | 🔧 |
 | **NOAA SPC** (Storm Prediction Center) | Tornado/hail/wind reports historical archive. | None | 🔧 |
