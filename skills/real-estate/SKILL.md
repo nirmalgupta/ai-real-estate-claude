@@ -1,13 +1,59 @@
 ---
 name: real-estate
-description: AI Real Estate Analyst v2 — pipeline-driven property audit. Deterministic Python data layer (FEMA flood, Census ACS, HUD FMR, NCES schools, NOAA storm history, USGS seismic, county CAD parcels, Movoto listing) feeds a wiki knowledge base; Claude reads the wiki + computed financial numbers and drafts each section. Trigger when the user runs /real-estate <address>, asks for a "full real estate analysis", or pastes a listing URL.
+description: AI Real Estate Analyst v2 — pipeline-driven property audit + investment-property search. Deterministic Python data layer (FEMA flood, Census ACS, HUD FMR, NCES schools, NOAA storm history, USGS seismic, OSM amenities, county CAD parcels, Movoto + Redfin listings) feeds a wiki knowledge base; Claude reads the wiki + computed financial numbers and drafts each section. Also includes a multi-property search (`pipeline.search`) to find candidates in a city or zip-radius before drilling into one. Trigger when the user runs /real-estate <address>, asks for a "full real estate analysis", pastes a listing URL, or asks to "find investment properties" / "search rentals" in an area.
 ---
 
 # Real Estate — v2 pipeline-driven analysis
 
-End-to-end audit of one property. The Python pipeline does the boring,
-deterministic work (HTTP, parsing, math); you (Claude) do the
-judgment-heavy work (extraction, narrative, synthesis).
+Two entry points:
+
+1. **Per-property deep audit** (`pipeline.run`) — full data sweep + narrative
+   on one address. This is the bulk of the skill.
+2. **Light multi-property search** (`pipeline.search`) — for "find me investment
+   candidates in Frisco TX" requests. Returns a key:value summary per listing
+   with no narrative; the user picks promising ones and reruns the per-property
+   flow on each.
+
+## Choosing the mode
+
+- If the user gave you **one address**, run the per-property flow (Phases A–F).
+- If the user gave you **a city / zip / area** with intent like "find rentals",
+  "search investment properties", or "what's good in this area", run the
+  **search flow** (Phase 0 below), present the summary, and stop. Don't run
+  the per-property pipeline on every result — that defeats the point of the
+  light search.
+
+The Python pipeline does the boring, deterministic work (HTTP, parsing,
+math); you (Claude) do the judgment-heavy work (extraction, narrative,
+synthesis).
+
+---
+
+## Phase 0 — Light search (only if the user asked for area/list)
+
+```
+python3 -m pipeline.search "<city / zip / lat,lon>" [--radius MILES] \\
+    [--min-price N] [--max-price N] [--min-beds N] [--min-baths X] \\
+    [--max-results N]
+```
+
+Output is a key:value block per listing with: address, redfin URL, price,
+beds, baths, sqft, lot, year, HOA, DOM, $/sqft, property type, MLS#.
+Sorted lowest-$/sqft first.
+
+Behavior:
+- Hits Redfin's `stingray/api/gis-csv` endpoint. Free, no key. Currently
+  the only listing-search source that returns 200 to plain HTTP — Zillow,
+  Realtor.com, HAR all anti-bot the python-httpx client.
+- Square-bbox search around the geocoded center. The Census Geocoder
+  resolves "Frisco TX" / "75036" / full addresses to lat/lon.
+- Default radius 3 miles. For city-wide use 5–8.
+- Excludes land / mobile / co-op by default (`--property-types` to change).
+- Server caps results at 350 per page; default is 50.
+
+Present the output to the user verbatim or lightly annotated (flag the
+lowest $/sqft, lowest DOM, etc). Ask which one(s) they want deep-dived,
+then run Phase A on the chosen URL(s).
 
 ## Inputs
 
@@ -24,8 +70,13 @@ no-op and the analysis runs without listing data.
 ## Phase A — Run the data pipeline (deterministic, ~30–60 sec)
 
 ```
-python3 -m pipeline.run "<full address>" --movoto-url "<url-if-known>"
+python3 -m pipeline.run "<full address>" \\
+    [--movoto-url "<url>"] [--redfin-url "<url>"]
 ```
+
+If the user just ran Phase 0, pass the listing URL(s) from the chosen
+result. Otherwise either find URLs via Google (`site:movoto.com "<addr>"`
+or `site:redfin.com "<addr>"`) or skip — those fetchers no-op cleanly.
 
 Sources the pipeline hits per run:
 
@@ -38,8 +89,10 @@ Sources the pipeline hits per run:
 | NCES public schools | nearest 3 elementary / middle / high schools, with locale code, distance, NCES IDs |
 | NOAA SPC storm CSVs | 10-yr counts of EF1+ tornadoes, hail ≥1.5", convective wind ≥58mph within 10mi |
 | USGS NSHM | seismic PGA at 2%-in-50yr (ASCE 7 design-basis level) |
+| OSM Overpass amenities | nearest 5 supermarkets, convenience stores, pharmacies, restaurants (with brand + distance). Companion `*_nearest_miles` facts for quick scoring. |
 | County CAD adapter | tax-assessed value, market value, owner, year built, legal description, lot size, sale price + date *(disclosure states only)* — **runs only if a CAD adapter is registered for the county** |
 | Movoto | list price, beds/baths/sqft/lot/year, photos, listing description |
+| Redfin (per-property HTML) | list price, beds/baths, sqft, year built, listing description, photo count, date posted. Saves raw HTML for LLM extraction. Pass `--redfin-url`. |
 
 Output: `wiki/properties/<slug>.md` with structured JSON frontmatter
 plus a human-readable section. Every fact carries `source`,
@@ -109,7 +162,7 @@ as `reports/<slug>/sections/<n>.md`:
 | `1-snapshot.md` | Address, list price, beds/baths/sqft/lot/year, key features, DOM, price history. **Cross-check** list price against `tax_market_value` from the CAD if available — flag any > 30% gap. |
 | `2-comps.md` | Use WebSearch for closed comps within ~1 mi, last 12 months. Compute $/sqft median + range, give an FMV estimate. Flag list-vs-FMV gap. |
 | `3-rental.md` | Paste numbers from `computed.json`. Frame the verdict: positive/negative cash flow, key ratios, break-even points. **Note the tax-reassessment time bomb** if list price >> CAD `tax_assessed_value` (TX 10% homestead cap means new buyers reset to market). |
-| `4-neighborhood.md` | **Schools first** — pull `nearest_elementary_schools` / `_middle_schools` / `_high_schools` from the wiki frontmatter. Each school carries name, distance, locale code, NCES ID, grade range. Add Census ACS demographics, walkability research, growth catalysts. |
+| `4-neighborhood.md` | **Schools first** — pull `nearest_elementary_schools` / `_middle_schools` / `_high_schools` from the wiki frontmatter. Each school carries name, distance, locale code, NCES ID, grade range. **Walkability/convenience** — use `nearest_supermarkets_nearest_miles`, `nearest_pharmacies_nearest_miles`, `nearest_restaurants_nearest_miles` from OSM as concrete walkability signals (<0.5mi grocery = urban infill, 0.5–2 = suburban, >5 = rural). Add Census ACS demographics, growth catalysts. |
 | `5-risk.md` | FEMA flood zone (from wiki). **Storm history** — pull `storm_tornado_ef1plus_10yr_count`, `storm_hail_15in_plus_10yr_count`, `storm_wind_58mph_plus_10yr_count` from wiki and translate into insurance/roof-replacement implications (hail is the #1 driver of TX homeowner claims). **Seismic** — `seismic_pga_2pct_50yr` interpreted: <0.1g low, 0.1–0.3g moderate, >0.3g high. |
 | `6-investment.md` | Buy-and-hold 7-yr (from `computed.json`), BRRRR feasibility, flip math. **Use CAD owner data** — if `owner_name` shows the same individual for 10+ years and the property is way under-improved vs. neighbors, that's a value-add candidate. |
 | `7-market.md` | Current submarket conditions: DOM, inventory, price trend YoY. Use WebSearch on Redfin/HAR/Realtor neighborhood pages. |
@@ -175,6 +228,13 @@ Tell the user:
 - **NOAA SPC cache:** the storm-history fetcher caches per-year CSVs
   under `~/.cache/ai-real-estate-pipeline/spc/`. First run for a new
   year-window pulls ~3 MB; subsequent runs are local.
+- **Overpass courtesy:** OSM Overpass is a shared free service. A 504
+  on this fetcher is normal under load — just retry the pipeline. If
+  this ever runs in volume, self-host Overpass and override the URL.
+- **Redfin vs Movoto:** both are independent listing sources. Movoto's
+  description is sometimes more agent-written; Redfin's photo count
+  and date-posted are useful "professional listing?" signals. When
+  both succeed they're complementary, not redundant.
 - **Where the schema/registry lives:** `pipeline/fetch/county/__init__.py`
   is the registry; `pipeline/fetch/county/_<state>_base.py` holds the
   TX/FL/NC defaults; `docs/data-sources.md` lists the supported
