@@ -34,7 +34,10 @@ def composite_score(computed: dict, facts: dict) -> dict:
       flood:           FEMA zone X = 100, AE/A = 30, V = 0
     """
     cap = computed.get("cash_flow", {}).get("cap_rate", 0)
-    cagr = computed.get("buy_hold", {}).get("approx_irr_cagr", 0)
+    # Use IRR for the appreciation subscore. If IRR is undefined (no sign
+    # change in cash flow), treat it as a deeply negative rate for scoring.
+    irr_val = computed.get("buy_hold", {}).get("irr")
+    cagr = irr_val if irr_val is not None else -0.20
     list_price = computed.get("inputs", {}).get("list_price", 0) or 0
     median_home_value = facts.get("median_home_value") or 0
     flood_zone = (facts.get("flood_zone") or "").split()[0] if facts.get("flood_zone") else ""

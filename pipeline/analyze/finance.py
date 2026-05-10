@@ -18,6 +18,43 @@ def monthly_pi(principal: float, annual_rate: float, term_years: int = 30) -> fl
     return principal * r * (1 + r) ** n / ((1 + r) ** n - 1)
 
 
+def irr(
+    cash_flows: list[float],
+    lo: float = -0.999,
+    hi: float = 10.0,
+    tol: float = 1.0,
+    max_iter: int = 200,
+) -> float | None:
+    """Internal Rate of Return via bisection.
+
+    cash_flows[0] is the year-0 investment (typically negative);
+    cash_flows[1..N] are end-of-period returns. Returns the rate r
+    where NPV(r) == 0, or None if no sign change exists in [lo, hi]
+    (e.g., all flows have the same sign — IRR is undefined).
+    """
+    def npv(r: float) -> float:
+        return sum(cf / (1 + r) ** t for t, cf in enumerate(cash_flows))
+
+    npv_lo, npv_hi = npv(lo), npv(hi)
+    if npv_lo == 0:
+        return lo
+    if npv_hi == 0:
+        return hi
+    if npv_lo * npv_hi > 0:
+        return None  # no root in bracket
+
+    for _ in range(max_iter):
+        mid = (lo + hi) / 2
+        v = npv(mid)
+        if abs(v) < tol:
+            return mid
+        if npv(lo) * v < 0:
+            hi = mid
+        else:
+            lo = mid
+    return (lo + hi) / 2
+
+
 @dataclass
 class CashFlowInputs:
     list_price: float
@@ -136,13 +173,20 @@ def buy_hold_irr(
     hold_years: int = 7,
     appreciation_rate: float = 0.045,
     selling_costs_pct: float = 0.07,
-) -> dict[str, float]:
-    """7-year (configurable) buy-and-hold returns.
+) -> dict[str, float | None]:
+    """N-year buy-and-hold returns with proper IRR.
 
-    Simple model: constant cash flow each year, exit at year-N value
-    minus selling costs and remaining loan balance. Returns a dict with
-    final_value, net_proceeds, total_cf, simple_irr (CAGR of total
-    multiple, not full IRR).
+    Simple model: constant annual operating cash flow, exit at year-N
+    value minus selling costs and remaining loan balance. Cash flow
+    schedule:
+        t=0:        -cash_invested            (down + closing)
+        t=1..N-1:   annual_cash_flow          (operating, often negative)
+        t=N:        annual_cash_flow + net_proceeds   (operating + exit)
+
+    Returns a dict with final_value, net_proceeds, total_cf, multiple,
+    and `irr` — the discount rate that zeroes NPV across the schedule.
+    `irr` is None if the cash flow series doesn't have a sign change
+    (e.g., never recovers initial investment under any positive rate).
     """
     cf_year = compute_cash_flow(inputs).annual_cash_flow_with_pm
     final_value = list_price * (1 + appreciation_rate) ** hold_years
@@ -168,7 +212,13 @@ def buy_hold_irr(
     cash_in = list_price * inputs.down_pct + list_price * 0.03
     total_return = total_cf + net_proceeds - cash_in
     multiple = (total_cf + net_proceeds) / cash_in if cash_in else 0.0
-    cagr = multiple ** (1 / hold_years) - 1 if multiple > 0 else -1.0
+
+    # Build the cash flow schedule and compute proper IRR
+    schedule = [-cash_in]
+    for year in range(1, hold_years):
+        schedule.append(cf_year)
+    schedule.append(cf_year + net_proceeds)
+    annual_irr = irr(schedule)
 
     return {
         "hold_years": hold_years,
@@ -181,7 +231,8 @@ def buy_hold_irr(
         "cash_invested": cash_in,
         "total_return": total_return,
         "multiple": multiple,
-        "approx_irr_cagr": cagr,
+        "irr": annual_irr,
+        "cash_flow_schedule": schedule,
     }
 
 

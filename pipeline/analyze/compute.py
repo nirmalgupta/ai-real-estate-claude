@@ -135,7 +135,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  cash-on-cash:          {cf.cash_on_cash * 100:>11,.2f}%")
     print(f"  break-even rent:      ${cf.break_even_rent():>12,.0f}")
     print(f"  break-even price:     ${be_price:>12,.0f}")
-    print(f"  {args.hold_years}-yr CAGR (approx):     {bh['approx_irr_cagr'] * 100:>11,.2f}%")
+    if bh.get("irr") is not None:
+        print(f"  {args.hold_years}-yr IRR:              {bh['irr'] * 100:>11,.2f}%")
+    else:
+        print(f"  {args.hold_years}-yr IRR:              undefined (no sign change in cash flow)")
     return 0
 
 

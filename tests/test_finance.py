@@ -6,7 +6,7 @@ import unittest
 
 from pipeline.analyze.finance import (
     CashFlowInputs, break_even_purchase_price, buy_hold_irr,
-    compute_cash_flow, monthly_pi,
+    compute_cash_flow, irr, monthly_pi,
 )
 
 
@@ -65,6 +65,51 @@ class TestBuyHold(unittest.TestCase):
         self.assertAlmostEqual(bh["final_value"], 703_550, delta=1_000)
         # Loan should amortize down
         self.assertLess(bh["remaining_loan_balance"], 400_000)
+
+
+class TestIRR(unittest.TestCase):
+    def test_simple_double_in_one_year(self):
+        # -100 today, +200 next year => IRR = 100%
+        self.assertAlmostEqual(irr([-100, 200]), 1.0, delta=0.01)
+
+    def test_zero_return(self):
+        # -100 today, +100 next year => IRR = 0
+        self.assertAlmostEqual(irr([-100, 100]), 0.0, delta=0.01)
+
+    def test_negative_return(self):
+        # -100 today, +50 next year => IRR = -50%
+        self.assertAlmostEqual(irr([-100, 50]), -0.5, delta=0.01)
+
+    def test_buy_hold_negative_carry(self):
+        # Mimics a property that bleeds cash but exits with appreciation
+        # close to break-even — IRR should be slightly negative, NOT -10%+.
+        # -360K, then -89K/yr for 6 yr, then -89K + 785K at year 7
+        cf = [-360_000] + [-89_000] * 6 + [-89_000 + 785_000]
+        result = irr(cf)
+        self.assertIsNotNone(result)
+        # Total return is negative (~$200K loss); IRR should be moderately
+        # negative (single digits), not catastrophically so.
+        self.assertLess(result, 0)
+        self.assertGreater(result, -0.10)
+
+    def test_no_sign_change_returns_none(self):
+        # All negative => IRR undefined
+        self.assertIsNone(irr([-100, -50, -25]))
+
+
+class TestBuyHoldIRR(unittest.TestCase):
+    def test_irr_present_in_result(self):
+        inputs = CashFlowInputs(
+            list_price=500_000, mortgage_rate=0.06,
+            annual_property_tax=6000, monthly_rent=4_000,
+        )
+        bh = buy_hold_irr(500_000, inputs, hold_years=5,
+                          appreciation_rate=0.04)
+        self.assertIn("irr", bh)
+        # If multiple > 1, IRR should be positive
+        if bh["multiple"] > 1.0:
+            self.assertIsNotNone(bh["irr"])
+            self.assertGreater(bh["irr"], 0)
 
 
 class TestBreakEvenPrice(unittest.TestCase):
