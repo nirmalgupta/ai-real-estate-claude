@@ -12,7 +12,20 @@ from __future__ import annotations
 # Add new county adapter imports here.
 # Each import fires a `register()` call at module load time.
 
-try:
-    from pipeline.fetch.county import tx_denton  # noqa: F401
-except Exception:
-    pass
+def _try_import(modname: str) -> None:
+    """Best-effort import. A broken adapter must not break the registry."""
+    try:
+        __import__(f"pipeline.fetch.county.{modname}")
+    except Exception:
+        pass
+
+
+# DFW
+_try_import("tx_denton")          # 48121
+
+# Houston metro
+_try_import("tx_harris")          # 48201
+_try_import("tx_fortbend")        # 48157
+_try_import("tx_montgomery")      # 48339
+_try_import("tx_brazoria")        # 48039
+_try_import("tx_galveston")       # 48167
