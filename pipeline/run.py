@@ -19,6 +19,7 @@ from pipeline.fetch.hud_fmr import HudFmrSource
 from pipeline.fetch.movoto import MovotoSource
 from pipeline.fetch.nces import NCESSource
 from pipeline.fetch.noaa_spc import NoaaSpcSource
+from pipeline.fetch.usgs_eq import UsgsEqSource
 from pipeline.wiki.builder import write_page
 
 DEFAULT_WIKI_ROOT = Path(__file__).resolve().parent.parent / "wiki"
@@ -54,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         HudFmrSource(),
         NCESSource(),
         NoaaSpcSource(),
+        UsgsEqSource(),
         MovotoSource(listing_url=args.movoto_url),
     ]
 

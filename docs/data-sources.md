@@ -24,7 +24,7 @@ Legend:
 | **HUD CHAS** (Comprehensive Housing Affordability Strategy) | Housing cost burden, affordability by income tier. | None | 🔧 |
 | **FEMA NFIP claims** | Historical flood insurance claims by ZIP. Better proxy for "does this area actually flood" than the static flood zone. | None | 🔧 |
 | **NCES public schools** (Common Core of Data) | Every public school: enrollment, demographics, locale code. Note: ratings (GreatSchools/Niche) are paid; raw stats are free. | None | ✅ `pipeline.fetch.nces` |
-| **USGS Earthquake Hazard** | Probabilistic seismic risk by lat/lon. National Seismic Hazard Map. | None | 🔧 |
+| **USGS Earthquake Hazard** | Probabilistic seismic risk by lat/lon. National Seismic Hazard Map. | None | ✅ `pipeline.fetch.usgs_eq` |
 | **NOAA Climate Normals** | 30-year temp/precip averages by station; useful for climate context. | None | 🔧 |
 | **NOAA SPC** (Storm Prediction Center) | Tornado/hail/wind reports historical archive. | None | ✅ `pipeline.fetch.noaa_spc` |
 | **EPA EJScreen** | Environmental justice screening: pollution exposure by tract. | None | 🔧 |
