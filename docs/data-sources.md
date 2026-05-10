@@ -87,6 +87,11 @@ Implemented adapters:
 | Miami-Dade, FL (12086) | `pipeline.fetch.county.fl_miami_dade` | Yes (FL disclosure) |
 | Broward, FL (12011) | `pipeline.fetch.county.fl_broward` | Yes |
 | Palm Beach, FL (12099) | `pipeline.fetch.county.fl_palmbeach` | Yes |
+| Wake, NC (37183) | `pipeline.fetch.county.nc_wake` | Yes (NC disclosure) |
+| Durham, NC (37063) | `pipeline.fetch.county.nc_durham` | Yes |
+| Orange, NC (37135) | `pipeline.fetch.county.nc_orange` | Yes |
+| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | Yes |
+| Johnston, NC (37101) | `pipeline.fetch.county.nc_johnston` | Yes |
 
 ---
 
