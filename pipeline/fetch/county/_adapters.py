@@ -26,6 +26,11 @@ _try_import("tx_dallas")          # 48113
 _try_import("tx_tarrant")         # 48439
 _try_import("tx_collin")          # 48085
 
+# Austin metro
+_try_import("tx_travis")          # 48453
+_try_import("tx_williamson")      # 48491
+_try_import("tx_hays")            # 48209
+
 # Houston metro
 _try_import("tx_harris")          # 48201
 _try_import("tx_fortbend")        # 48157

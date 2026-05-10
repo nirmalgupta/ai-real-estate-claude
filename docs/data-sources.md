@@ -76,6 +76,9 @@ Implemented adapters:
 | Dallas, TX (48113) | `pipeline.fetch.county.tx_dallas` | No |
 | Tarrant, TX (48439) | `pipeline.fetch.county.tx_tarrant` | No |
 | Collin, TX (48085) | `pipeline.fetch.county.tx_collin` | No |
+| Travis, TX (48453) | `pipeline.fetch.county.tx_travis` | No |
+| Williamson, TX (48491) | `pipeline.fetch.county.tx_williamson` | No |
+| Hays, TX (48209) | `pipeline.fetch.county.tx_hays` | No |
 | Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | No |
 | Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | No |
 | Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | No |
