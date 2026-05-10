@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
-# Remove AI Real Estate Analyst skills from ~/.claude/
+# Remove v2 AI Real Estate skill from ~/.claude/.
 #
-# Auto-discovers what to remove by iterating THIS repo's tree:
-#   real-estate/         -> ${CLAUDE_DIR}/skills/real-estate
-#   skills/<name>/       -> ${CLAUDE_DIR}/skills/<name>
-#   agents/<name>.md     -> ${CLAUDE_DIR}/agents/<name>.md
-#   scripts/<name>.py    -> ${CLAUDE_DIR}/scripts/<name>.py
-#   re_complete_config.json (user iMessage handle)
+# Auto-discovers what to remove from this repo's skills/ and scripts/
+# trees. Stays correct as files get added or renamed.
 #
 # Flags:
 #   --dry-run     show what would be removed, don't touch anything
-#   --keep-config preserve ${CLAUDE_DIR}/re_complete_config.json
+#   --keep-config preserve ~/.claude/re_complete_config.json
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,12 +20,11 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --keep-config) KEEP_CONFIG=1 ;;
         -h|--help)
-            sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
             echo "Unknown flag: ${arg}" >&2
-            echo "Try: $0 --help" >&2
             exit 2
             ;;
     esac
@@ -56,22 +51,11 @@ remove_path() {
 }
 
 echo ""
-if [ "${DRY_RUN}" -eq 1 ]; then
-    echo "  AI Real Estate Analyst — Uninstall (DRY RUN, nothing will be deleted)"
-else
-    echo "  AI Real Estate Analyst — Uninstall"
-fi
+[ "${DRY_RUN}" -eq 1 ] && echo "  Uninstall (DRY RUN — nothing will be deleted)" \
+                       || echo "  AI Real Estate Analyst v2 — Uninstall"
 echo ""
 
-# 1. Orchestrator skill (real-estate/)
-echo "Skills (orchestrator):"
-if [ -d "${SCRIPT_DIR}/real-estate" ]; then
-    remove_path "${CLAUDE_DIR}/skills/real-estate" "skills/real-estate"
-fi
-
-# 2. Sub-skills (skills/<name>/)
-echo ""
-echo "Skills (sub-skills):"
+echo "Skills:"
 if [ -d "${SCRIPT_DIR}/skills" ]; then
     for d in "${SCRIPT_DIR}/skills/"*/; do
         [ -d "${d}" ] || continue
@@ -80,18 +64,6 @@ if [ -d "${SCRIPT_DIR}/skills" ]; then
     done
 fi
 
-# 3. Agents
-echo ""
-echo "Agents:"
-if [ -d "${SCRIPT_DIR}/agents" ]; then
-    for f in "${SCRIPT_DIR}/agents/"*.md; do
-        [ -f "${f}" ] || continue
-        name="$(basename "${f}")"
-        remove_path "${CLAUDE_DIR}/agents/${name}" "agents/${name}"
-    done
-fi
-
-# 4. Scripts
 echo ""
 echo "Scripts:"
 if [ -d "${SCRIPT_DIR}/scripts" ]; then
@@ -102,33 +74,24 @@ if [ -d "${SCRIPT_DIR}/scripts" ]; then
     done
 fi
 
-# 5. Per-user iMessage config
 echo ""
 echo "User config:"
 if [ "${KEEP_CONFIG}" -eq 1 ]; then
     if [ -f "${CONFIG_FILE}" ]; then
         echo "  preserved: re_complete_config.json (--keep-config)"
-    else
-        echo "  not found: re_complete_config.json"
     fi
 else
     if [ -f "${CONFIG_FILE}" ]; then
-        # Surface the handle before deleting so user can recreate later
         handle="$(python3 -c "import json,sys; print(json.load(open('${CONFIG_FILE}')).get('imessage_to',''))" 2>/dev/null || echo "")"
-        if [ -n "${handle}" ]; then
-            echo "  (saved iMessage handle was: ${handle})"
-        fi
+        [ -n "${handle}" ] && echo "  (saved iMessage handle was: ${handle})"
     fi
     remove_path "${CONFIG_FILE}" "re_complete_config.json"
 fi
 
 echo ""
-if [ "${DRY_RUN}" -eq 1 ]; then
-    echo "Dry run complete. ${removed} item(s) would be removed, ${missing} not present."
-    echo "Re-run without --dry-run to actually uninstall."
-else
-    echo "Done. ${removed} item(s) removed, ${missing} not present."
-    echo "Restart Claude Code so it picks up the change."
-    echo "(reportlab Python package not removed — pip uninstall reportlab if you want.)"
-fi
+[ "${DRY_RUN}" -eq 1 ] \
+    && echo "Dry run complete. ${removed} would be removed, ${missing} not present." \
+    || echo "Done. ${removed} removed, ${missing} not present."
+[ "${DRY_RUN}" -eq 0 ] && echo "Restart Claude Code so it picks up the change."
+echo "(Python deps not removed: pip uninstall httpx reportlab if you want.)"
 echo ""
