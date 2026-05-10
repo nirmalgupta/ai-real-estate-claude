@@ -32,8 +32,9 @@ class TestRegistry(unittest.TestCase):
         self.assertIsInstance(adapter, DentonTxCAD)
 
     def test_unregistered_returns_none(self):
-        # Travis County (TX) — not yet registered.
-        adapter = get_cad_source(_addr(state="48", county="453", county_name="Travis"))
+        # Loving County, TX (FIPS 48301) — population <100, no CAD adapter
+        # planned. Use a stable nonexistent county for this test.
+        adapter = get_cad_source(_addr(state="48", county="301", county_name="Loving"))
         self.assertIsNone(adapter)
 
     def test_register_validates_fips(self):
