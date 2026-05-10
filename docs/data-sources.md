@@ -68,6 +68,12 @@ schema, no national index.
 The CAD registry is plug-in: see `pipeline/fetch/county/__init__.py`.
 Adding an adapter is a 200–500-line per-county project.
 
+Implemented adapters:
+
+| County (FIPS) | Module | Sale price disclosed? |
+|---|---|---|
+| Denton, TX (48121) | `pipeline.fetch.county.tx_denton` | No (TX non-disclosure) |
+
 ---
 
 ## Paid alternatives (when public data isn't enough)

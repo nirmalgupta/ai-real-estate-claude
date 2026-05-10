@@ -10,7 +10,9 @@ registry for others.
 from __future__ import annotations
 
 # Add new county adapter imports here.
-# Example: `from pipeline.fetch.county import tx_montgomery  # noqa: F401`
+# Each import fires a `register()` call at module load time.
 
-# Currently no adapters are registered — the pipeline runs without
-# county data and notes that gap in the report.
+try:
+    from pipeline.fetch.county import tx_denton  # noqa: F401
+except Exception:
+    pass
