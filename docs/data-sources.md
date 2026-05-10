@@ -73,6 +73,11 @@ Implemented adapters:
 | County (FIPS) | Module | Sale price disclosed? |
 |---|---|---|
 | Denton, TX (48121) | `pipeline.fetch.county.tx_denton` | No (TX non-disclosure) |
+| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | No |
+| Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | No |
+| Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | No |
+| Brazoria, TX (48039) | `pipeline.fetch.county.tx_brazoria` | No |
+| Galveston, TX (48167) | `pipeline.fetch.county.tx_galveston` | No |
 
 ---
 
