@@ -13,6 +13,7 @@ from pathlib import Path
 
 from pipeline.common.address import geocode
 from pipeline.fetch.census_acs import CensusACSSource
+from pipeline.fetch.county import get_cad_source, supported_counties
 from pipeline.fetch.fema_nfhl import FemaNFHLSource
 from pipeline.fetch.hud_fmr import HudFmrSource
 from pipeline.fetch.movoto import MovotoSource
@@ -51,6 +52,21 @@ def main(argv: list[str] | None = None) -> int:
         HudFmrSource(),
         MovotoSource(listing_url=args.movoto_url),
     ]
+
+    # County CAD adapter is plug-in: included only if registered for this
+    # county. The pipeline runs fine without one.
+    cad = get_cad_source(addr)
+    if cad is not None:
+        sources.append(cad)
+        print(f"      (CAD adapter registered for {addr.full_county_fips}: {cad.name})")
+    else:
+        registered = supported_counties()
+        if registered:
+            print(f"      (no CAD adapter for {addr.full_county_fips}; "
+                  f"registered: {', '.join(registered)})")
+        else:
+            print("      (no CAD adapters registered yet — county records skipped)")
+
     results = []
     for s in sources:
         print(f"      - {s.name}...", end=" ", flush=True)
