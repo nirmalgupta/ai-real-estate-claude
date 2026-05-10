@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -92,6 +93,77 @@ def _to_float(v) -> float | None:
         return float(str(v).replace(",", ""))
     except (TypeError, ValueError):
         return None
+
+
+# One row of Redfin's sale-history table. The HTML structure is:
+#   <div class="BasicTable__row ...">
+#     <div class="BasicTable__col date">Apr 30, 2026</div>
+#     <div class="BasicTable__col event">Listed</div>
+#     <div class="BasicTable__col price">$1,049,000<p class="subtext">$<!-- -->262<!-- -->/sq ft</p></div>
+#   </div>
+_HISTORY_ROW_RE = re.compile(
+    r'<div class="BasicTable__col date">([^<]+)</div>'
+    r'<div class="BasicTable__col event">([^<]+)</div>'
+    r'<div class="BasicTable__col price">(.*?)</div>',
+    re.DOTALL,
+)
+_PRICE_RE = re.compile(r'\$([\d,]+)')
+_PPSQFT_RE = re.compile(r'\$<!--\s*-->(\d+)<!--\s*-->/sq ft')
+
+
+def _parse_price_history(html: str) -> list[dict]:
+    """Pull the Sale History table out of Redfin's per-property HTML.
+
+    Each entry: {date, event, price (int or None), price_per_sqft}.
+    TX-non-disclosure rows have price='*' in the HTML — we surface them
+    with price=None and a note so the caller knows the row exists.
+    """
+    events: list[dict] = []
+    for date_str, event, price_blob in _HISTORY_ROW_RE.findall(html):
+        # Skip "—" or pure dashes which appear on Contingent/Pending rows.
+        price_m = _PRICE_RE.search(price_blob)
+        ppsqft_m = _PPSQFT_RE.search(price_blob)
+        events.append({
+            "date": date_str.strip(),
+            "event": event.strip(),
+            "price": int(price_m.group(1).replace(",", "")) if price_m else None,
+            "price_per_sqft": int(ppsqft_m.group(1)) if ppsqft_m else None,
+            "non_disclosure": "*" in price_blob and price_m is None and event.strip() == "Sold",
+        })
+    return events
+
+
+def _implied_list_appreciation(history: list[dict]) -> dict | None:
+    """If we have ≥2 list events with prices, compute implied annualized
+    appreciation from prior list → most recent list. Useful sanity check
+    against the configurable forward-appreciation rate.
+    """
+    list_events = [
+        e for e in history
+        if e["event"].lower() == "listed" and e["price"] is not None
+    ]
+    if len(list_events) < 2:
+        return None
+    try:
+        # History is ordered newest-first in the Redfin HTML.
+        new_e, old_e = list_events[0], list_events[-1]
+        new_dt = datetime.strptime(new_e["date"], "%b %d, %Y")
+        old_dt = datetime.strptime(old_e["date"], "%b %d, %Y")
+    except ValueError:
+        return None
+    years = (new_dt - old_dt).days / 365.25
+    if years <= 0 or old_e["price"] <= 0:
+        return None
+    ratio = new_e["price"] / old_e["price"]
+    annual = ratio ** (1 / years) - 1
+    return {
+        "from_date": old_e["date"],
+        "from_price": old_e["price"],
+        "to_date": new_e["date"],
+        "to_price": new_e["price"],
+        "years_between": round(years, 2),
+        "implied_annual_rate": round(annual, 4),
+    }
 
 
 class RedfinSource(Source):
@@ -173,6 +245,23 @@ class RedfinSource(Source):
         images = block.get("image") if isinstance(block.get("image"), list) else None
         if images:
             add("photo_count", len(images))
+
+        # Sale history table — clean HTML, scrapable regardless of state.
+        history = _parse_price_history(html)
+        if history:
+            add("redfin_price_history", history,
+                note=f"{len(history)} historical event(s); '*' price rows "
+                     "are sales hidden by state non-disclosure laws")
+            implied = _implied_list_appreciation(history)
+            if implied is not None:
+                add("redfin_implied_list_appreciation", implied,
+                    note=(
+                        f"Annualized appreciation between prior list "
+                        f"({implied['from_date']}: ${implied['from_price']:,}) "
+                        f"and current list "
+                        f"({implied['to_date']}: ${implied['to_price']:,}). "
+                        "Useful sanity-check for forward-projection assumptions."
+                    ))
 
         return FetchResult(
             source_name=self.name, address=address, facts=facts,
