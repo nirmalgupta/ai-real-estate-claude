@@ -25,28 +25,31 @@ class DentonTxCAD(ArcGISParcelCAD):
     county_label = "Denton County, TX"
     sale_price_disclosed = False
 
-    # Denton County GIS open-data parcel layer. Note: this URL is the
-    # documented public endpoint; if Denton rolls a new layer index the
-    # adapter will return a clean error and the pipeline carries on.
+    # Denton County GIS publishes the joined CAD layer at
+    #   /arcgis/rest/services/CAD/MapServer/0  (parcel polygons).
+    # Field names are lowercase. Confirmed live against
+    # 6919 Tailwater Trl, Frisco — 2026-05.
     service_url = (
-        "https://gis.dentoncounty.gov/server/rest/services/"
-        "Parcels/MapServer/0"
+        "https://gis.dentoncounty.gov/arcgis/rest/services/CAD/MapServer/0"
     )
 
     attr_map = {
-        # Denton's parcel layer ships several appraisal aliases. Order is
-        # most-specific first so the chosen value is the right one.
-        "tax_assessed_value":     ["TOTAL_APPRAISED_VALUE", "TOTAL_APPRAISED_VAL", "TOTAL_VAL"],
-        "tax_market_value":       ["TOTAL_MARKET_VALUE", "MARKET_VAL"],
-        "tax_assessed_year":      ["APPRAISAL_YEAR", "YEAR", "TAX_YEAR"],
-        "lot_size_sqft":          ["LAND_SQFT", "GIS_SQFT"],
-        "lot_size_acres":         ["LAND_ACRES", "GIS_ACRES", "ACRES"],
-        "legal_description":      ["LEGAL_DESC", "LEGAL", "LEGAL_LINE_1"],
-        "owner_name":             ["OWNER_NAME", "OWNER"],
-        "last_deed_date":         ["DEED_DATE", "TRANSFER_DATE"],
-        "year_built_cad":         ["YEAR_BUILT", "ACTUAL_YEAR_BUILT"],
-        "living_area_sqft_cad":   ["LIVING_AREA", "LIVING_SQFT", "TOTAL_SF"],
-        "property_id":            ["PROP_ID", "PROPERTY_ID", "PIN", "ACCOUNT_NUM"],
+        "tax_assessed_value":     ["cert_asses_val", "asses_val"],
+        "tax_market_value":       ["cert_mkt_val", "mkt_val"],
+        "tax_appraised_value":    ["cert_appr_val", "appr_val"],
+        "tax_assessed_year":      ["prop_val_yr"],
+        "lot_size_sqft":          ["land_sqft"],
+        "lot_size_acres":         ["legal_acreage"],
+        "legal_description":      ["legal_desc"],
+        "owner_name":             ["owner_name"],
+        # Denton's CAD layer does not publish a transfer date column;
+        # deedID/volume/page are the only deed pointers and aren't
+        # dates, so we omit last_deed_date here. (TX is non-disclosure
+        # state, so last_sale_price is also not exposed.)
+        "year_built_cad":         ["yr_blt"],
+        "living_area_sqft_cad":   ["living_area"],
+        "property_id":            ["prop_id", "PID"],
+        "situs_address":          ["situs"],
     }
 
 

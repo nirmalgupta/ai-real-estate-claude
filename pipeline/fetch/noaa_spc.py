@@ -1,4 +1,4 @@
-"""NOAA SPC / NCEI storm-history fetcher.
+"""NOAA SPC storm-history fetcher.
 
 For each property lat/lon, returns 10-year counts of severe-storm events
 within a 10-mile radius:
@@ -6,139 +6,176 @@ within a 10-mile radius:
     - hail events with reported size ≥ 1.5"
     - convective wind events with measured/estimated speed ≥ 58 mph
 
-Backed by NOAA NCEI's public ArcGIS map service for severe-weather
-events. Each event class is its own layer; we issue one spatial+temporal
-query per layer and count features.
+Data source: NOAA Storm Prediction Center's annual severe-weather CSVs
+at https://www.spc.noaa.gov/wcm/data/<year>_<type>.csv
 
-Failure modes:
-    - Service unreachable → FetchResult.error set, pipeline continues.
-    - Zero features → all three counts return 0 (genuinely no events).
+Each CSV is small (~150 KB), but we still cache the per-year file under
+~/.cache/ai-real-estate-pipeline/spc/ so subsequent runs are local.
+
+The CSVs are only the schema NOAA documents at
+    https://www.spc.noaa.gov/wcm/  (see "SPC Severe Weather Database")
+
+The choice of CSVs over an ArcGIS service is deliberate: the SPC SVRGIS
+endpoint is not a stable public point-query API, but the CSVs have been
+the canonical archive since 1950.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+import csv
+import io
+import math
+import os
+from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 
 from pipeline.common.address import Address
 from pipeline.fetch.base import Fact, FetchResult, Source
 
-NCEI_BASE = "https://maps.ncei.noaa.gov/server/rest/services"
-
-# These layer URLs follow NCEI's published severe-thunderstorm events
-# service. If the service moves, the fetcher returns a clean error.
-TORNADO_LAYER = (
-    f"{NCEI_BASE}/ncei_severe_thunderstorm_events/MapServer/0"  # tornado tracks
-)
-HAIL_LAYER = (
-    f"{NCEI_BASE}/ncei_severe_thunderstorm_events/MapServer/1"
-)
-WIND_LAYER = (
-    f"{NCEI_BASE}/ncei_severe_thunderstorm_events/MapServer/2"
-)
+SPC_BASE = "https://www.spc.noaa.gov/wcm/data"
 
 RADIUS_MILES = 10.0
 LOOKBACK_YEARS = 10
 
-
-def _epoch_ms(dt: datetime) -> int:
-    return int(dt.replace(tzinfo=timezone.utc).timestamp() * 1000)
+DEFAULT_CACHE_DIR = Path.home() / ".cache" / "ai-real-estate-pipeline" / "spc"
 
 
-def _date_range_clause(years: int, date_field: str) -> str:
-    """Build an ArcGIS WHERE clause for the last N years on `date_field`.
-
-    NCEI services historically expose a TIMESTAMP-typed column; using
-    a yyyy-MM-dd literal works on both Postgres- and Esri-FileGDB-backed
-    services.
-    """
-    end = datetime.now(timezone.utc)
-    start = end - timedelta(days=365 * years)
-    s = start.strftime("%Y-%m-%d")
-    e = end.strftime("%Y-%m-%d")
-    return f"{date_field} >= DATE '{s}' AND {date_field} <= DATE '{e}'"
+# CSV column indexes for tornado, hail, wind. SPC's schema is fixed and
+# documented at https://www.spc.noaa.gov/wcm/. Tornadoes have separate
+# slat/slon (start) and elat/elon (end); hail and wind have a single
+# slat/slon point.
+TORN_COLS = {"yr": 1, "mag": 10, "slat": 15, "slon": 16}
+HAIL_COLS = {"yr": 1, "mag": 10, "slat": 15, "slon": 16}
+WIND_COLS = {"yr": 1, "mag": 10, "slat": 15, "slon": 16}
 
 
-def _count_features(
-    layer_url: str,
-    address: Address,
-    extra_where: str | None = None,
-) -> tuple[int | None, str]:
-    """Spatial+attribute count query against one ArcGIS layer.
+def _haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 3958.7613
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
 
-    Returns (count, query_url). If the service is unreachable or returns
-    an error envelope, count is None.
-    """
-    where = "1=1"
-    if extra_where:
-        where = extra_where
-    params: dict[str, Any] = {
-        "f": "json",
-        "where": where,
-        "geometry": f"{address.lon},{address.lat}",
-        "geometryType": "esriGeometryPoint",
-        "inSR": "4326",
-        "spatialRel": "esriSpatialRelIntersects",
-        "distance": str(RADIUS_MILES),
-        "units": "esriSRUnit_StatuteMile",
-        "returnCountOnly": "true",
-    }
-    query_url = f"{layer_url}/query"
+
+def _cache_path(cache_dir: Path, year: int, kind: str) -> Path:
+    return cache_dir / f"{year}_{kind}.csv"
+
+
+def _fetch_year_csv(year: int, kind: str, cache_dir: Path) -> str | None:
+    """Return CSV body for a (year, kind), via cache or HTTP. None on failure."""
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = _cache_path(cache_dir, year, kind)
+    if cache_file.exists() and cache_file.stat().st_size > 0:
+        try:
+            return cache_file.read_text()
+        except OSError:
+            pass
+
+    url = f"{SPC_BASE}/{year}_{kind}.csv"
     try:
-        r = httpx.get(query_url, params=params, timeout=30.0)
+        r = httpx.get(url, timeout=30.0)
         r.raise_for_status()
-        data = r.json()
+        body = r.text
     except (httpx.HTTPError, ValueError):
-        return None, query_url
-    if not isinstance(data, dict) or "error" in data:
-        return None, query_url
-    count = data.get("count")
-    if isinstance(count, int):
-        return count, query_url
-    return None, query_url
+        return None
+    try:
+        cache_file.write_text(body)
+    except OSError:
+        pass
+    return body
+
+
+def _count_in_csv(
+    csv_body: str,
+    cols: dict[str, int],
+    address: Address,
+    *,
+    mag_min: float,
+) -> int:
+    """Count rows whose start lat/lon is within RADIUS_MILES and mag ≥ threshold."""
+    count = 0
+    reader = csv.reader(io.StringIO(csv_body))
+    next(reader, None)  # header
+    for row in reader:
+        if len(row) <= cols["slon"]:
+            continue
+        try:
+            mag = float(row[cols["mag"]] or "0")
+            slat = float(row[cols["slat"]] or "0")
+            slon = float(row[cols["slon"]] or "0")
+        except ValueError:
+            continue
+        if mag < mag_min or slat == 0 or slon == 0:
+            continue
+        if _haversine_miles(address.lat, address.lon, slat, slon) <= RADIUS_MILES:
+            count += 1
+    return count
 
 
 class NoaaSpcSource(Source):
     name = "noaa_spc"
 
+    def __init__(self, cache_dir: Path | None = None) -> None:
+        env = os.environ.get("AI_RE_SPC_CACHE_DIR")
+        self.cache_dir = (
+            cache_dir or (Path(env) if env else DEFAULT_CACHE_DIR)
+        )
+
     def fetch(self, address: Address) -> FetchResult:
-        # NCEI fields: tornado magnitude is `MAGNITUDE` (EF scale int);
-        # hail magnitude is inches; wind magnitude is mph.
-        date_clause = _date_range_clause(LOOKBACK_YEARS, "BEGIN_DATE")
+        end_year = datetime.now(timezone.utc).year - 1   # SPC publishes prior year
+        start_year = end_year - LOOKBACK_YEARS + 1
 
-        tornado_where = f"{date_clause} AND MAGNITUDE >= 1"
-        hail_where = f"{date_clause} AND MAGNITUDE >= 1.5"
-        wind_where = f"{date_clause} AND MAGNITUDE >= 58"
+        thresholds = {
+            "torn": (TORN_COLS, 1.0,  "EF1+ tornadoes"),
+            "hail": (HAIL_COLS, 1.5,  "Hail ≥1.5\""),
+            "wind": (WIND_COLS, 58.0, "Convective wind ≥58mph"),
+        }
 
-        tornado_count, tornado_ref = _count_features(TORNADO_LAYER, address, tornado_where)
-        hail_count, hail_ref = _count_features(HAIL_LAYER, address, hail_where)
-        wind_count, wind_ref = _count_features(WIND_LAYER, address, wind_where)
+        counts: dict[str, int] = {k: 0 for k in thresholds}
+        years_covered: dict[str, int] = {k: 0 for k in thresholds}
 
-        if tornado_count is None and hail_count is None and wind_count is None:
+        for kind, (cols, mag_min, _label) in thresholds.items():
+            for year in range(start_year, end_year + 1):
+                body = _fetch_year_csv(year, kind, self.cache_dir)
+                if body is None:
+                    continue
+                counts[kind] += _count_in_csv(body, cols, address, mag_min=mag_min)
+                years_covered[kind] += 1
+
+        if all(years_covered[k] == 0 for k in thresholds):
             return FetchResult(
                 source_name=self.name, address=address, facts={},
                 error=(
-                    "NOAA NCEI severe-storm service unreachable for all three "
-                    f"event classes (last {LOOKBACK_YEARS}yr, {RADIUS_MILES}mi)."
+                    "NOAA SPC severe-weather CSVs unreachable for all event types "
+                    f"(years {start_year}–{end_year})."
                 ),
             )
 
+        ref = f"{SPC_BASE}/<year>_<torn|hail|wind>.csv  (years {start_year}-{end_year})"
         facts: dict[str, Fact] = {}
 
-        def add(key: str, value: int | None, ref: str, note: str) -> None:
-            if value is None:
-                return
-            facts[key] = Fact(value=value, source=self.name, raw_ref=ref, note=note)
-
-        add("storm_tornado_ef1plus_10yr_count", tornado_count, tornado_ref,
-            f"Tornadoes EF1+ within {RADIUS_MILES}mi, last {LOOKBACK_YEARS}yr")
-        add("storm_hail_15in_plus_10yr_count", hail_count, hail_ref,
-            f"Hail ≥1.5\" within {RADIUS_MILES}mi, last {LOOKBACK_YEARS}yr")
-        add("storm_wind_58mph_plus_10yr_count", wind_count, wind_ref,
-            f"Convective wind ≥58mph within {RADIUS_MILES}mi, last {LOOKBACK_YEARS}yr")
+        if years_covered["torn"]:
+            facts["storm_tornado_ef1plus_10yr_count"] = Fact(
+                value=counts["torn"], source=self.name, raw_ref=ref,
+                note=(f"Tornadoes EF1+ within {RADIUS_MILES}mi, "
+                      f"{years_covered['torn']} of {LOOKBACK_YEARS} yr files matched"),
+            )
+        if years_covered["hail"]:
+            facts["storm_hail_15in_plus_10yr_count"] = Fact(
+                value=counts["hail"], source=self.name, raw_ref=ref,
+                note=(f"Hail ≥1.5\" within {RADIUS_MILES}mi, "
+                      f"{years_covered['hail']} of {LOOKBACK_YEARS} yr files matched"),
+            )
+        if years_covered["wind"]:
+            facts["storm_wind_58mph_plus_10yr_count"] = Fact(
+                value=counts["wind"], source=self.name, raw_ref=ref,
+                note=(f"Convective wind ≥58mph within {RADIUS_MILES}mi, "
+                      f"{years_covered['wind']} of {LOOKBACK_YEARS} yr files matched"),
+            )
 
         return FetchResult(
             source_name=self.name, address=address, facts=facts,
-            raw={"tornado_ref": tornado_ref, "hail_ref": hail_ref, "wind_ref": wind_ref},
+            raw={"years_covered": years_covered, "window": (start_year, end_year)},
         )

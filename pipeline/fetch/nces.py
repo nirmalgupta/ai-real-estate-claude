@@ -26,13 +26,15 @@ from pipeline.fetch.base import Fact, FetchResult, Source
 
 NCES_BASE = "https://nces.ed.gov/opengis/rest/services"
 
-# Ordered newest → older. Layer 1 = points; layer 0 may be polygons.
-# Each year's layer rolls in the fall after the school year ends.
+# NCES publishes one MapServer per school year. ADMINDATA layer 1 carries
+# the full attribute set we want (SCH_NAME / GSLO / GSHI / SCHOOL_LEVEL /
+# ULOCALE / TOTFRL etc); the GEOCODE service exposes only address fields.
+# Try newest first; each rolls in the fall after the school year ends.
 LAYER_CANDIDATES = [
-    f"{NCES_BASE}/Customer_Specific/EDGE_GEOCODE_PUBLICSCH_2324/MapServer/1",
-    f"{NCES_BASE}/Customer_Specific/EDGE_GEOCODE_PUBLICSCH_2223/MapServer/1",
-    f"{NCES_BASE}/Customer_Specific/EDGE_GEOCODE_PUBLICSCH_2122/MapServer/1",
-    f"{NCES_BASE}/Customer_Specific/EDGE_GEOCODE_PUBLICSCH/MapServer/1",
+    f"{NCES_BASE}/K12_School_Locations/EDGE_ADMINDATA_PUBLICSCH_2425/MapServer/1",
+    f"{NCES_BASE}/K12_School_Locations/EDGE_ADMINDATA_PUBLICSCH_2324/MapServer/1",
+    f"{NCES_BASE}/K12_School_Locations/EDGE_ADMINDATA_PUBLICSCH_2223/MapServer/1",
+    f"{NCES_BASE}/K12_School_Locations/EDGE_ADMINDATA_PUBLICSCH_2122/MapServer/1",
 ]
 
 SEARCH_RADIUS_MILES = 8.0  # generous enough for rural; nearest-3 will be much closer in cities
@@ -73,15 +75,18 @@ def _query_layer(layer_url: str, address: Address) -> tuple[list[dict[str, Any]]
     None if the layer is unreachable or returns an ArcGIS error envelope —
     the caller will fall through to the next year's layer.
     """
+    # Some ArcGIS deployments reject queries with outFields=* unless an
+    # explicit `where` is given. Pass `1=1` to be safe.
     params = {
         "f": "json",
+        "where": "1=1",
         "geometry": f"{address.lon},{address.lat}",
         "geometryType": "esriGeometryPoint",
         "inSR": "4326",
         "spatialRel": "esriSpatialRelIntersects",
         "distance": str(SEARCH_RADIUS_MILES),
         "units": "esriSRUnit_StatuteMile",
-        "outFields": "*",
+        "outFields": "SCH_NAME,LCITY,LSTATE,GSLO,GSHI,SCHOOL_LEVEL,LEA_NAME,NCESSCH,ULOCALE",
         "returnGeometry": "true",
         "outSR": "4326",
     }
@@ -162,12 +167,12 @@ class NCESSource(Source):
             )
             if len(by_level[level]) < MAX_PER_LEVEL:
                 by_level[level].append({
-                    "name": _get(attrs, "NAME", "SCH_NAME"),
-                    "city": _get(attrs, "CITY", "LCITY"),
-                    "state": _get(attrs, "STATE", "LSTATE"),
+                    "name": _get(attrs, "SCH_NAME", "NAME"),
+                    "city": _get(attrs, "LCITY", "CITY"),
+                    "state": _get(attrs, "LSTATE", "STATE"),
                     "lea": _get(attrs, "LEA_NAME", "LEANM"),
                     "nces_school_id": _get(attrs, "NCESSCH"),
-                    "enrollment": _get(attrs, "MEMBER", "ENROLLMENT"),
+                    "school_level": _get(attrs, "SCHOOL_LEVEL"),
                     "locale_code": _get(attrs, "ULOCALE", "LOCALE"),
                     "grade_low": _get(attrs, "GSLO", "GRADE_LOW"),
                     "grade_high": _get(attrs, "GSHI", "GRADE_HIGH"),

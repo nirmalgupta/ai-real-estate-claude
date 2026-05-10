@@ -47,7 +47,9 @@ class TestRegistry(unittest.TestCase):
 class TestArcGISBase(unittest.TestCase):
     def test_attr_map_lookup_case_insensitive(self):
         d = DentonTxCAD()
-        attrs = {"Total_Appraised_Value": 425000, "owner_name": "DOE, JANE"}
+        # Denton's parcel layer ships lowercase keys, but _pick is
+        # case-insensitive so mixed-case input still resolves.
+        attrs = {"Cert_Asses_Val": 425000, "owner_name": "DOE, JANE"}
         self.assertEqual(d._pick(attrs, "tax_assessed_value"), 425000)
         self.assertEqual(d._pick(attrs, "owner_name"), "DOE, JANE")
         self.assertIsNone(d._pick(attrs, "last_sale_price"))
