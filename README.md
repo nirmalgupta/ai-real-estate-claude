@@ -179,6 +179,14 @@ Heuristic 0–100 weighted blend (in `pipeline/synthesize.py`):
 Grades: A+ ≥90 · A ≥80 · B ≥65 · C ≥50 · D ≥35 · F <35
 Signals: Strong Buy / Buy / Hold / Watch / Avoid
 
+## Data sources
+
+Wired-in today: **Census Geocoder** (with Nominatim+FCC fallback), **FEMA NFHL** (flood), **Census ACS** (tract demographics), **HUD FMR** (rent benchmark), **Movoto** (listing).
+
+Available but not yet wired in: HUD CHAS, FEMA NFIP claims, NCES schools, USGS earthquake, NOAA climate normals, EPA EJScreen / Superfund, BLS unemployment, BEA income, DOT traffic counts.
+
+Per-county / paid: tax-assessed value, last sale, owner of record, MLS comps. See [`docs/data-sources.md`](docs/data-sources.md) for the full catalogue, status of each source, paid alternatives, and a how-to-add-a-fetcher checklist.
+
 ## Limitations
 
 - **Listing data is one source (Movoto)** — Zillow/Redfin/HAR/Realtor
