@@ -29,7 +29,7 @@ from pipeline.fetch.base import Fact, FetchResult, Source
 # US) and AK, HI editions. We default to COUS; outside that region the
 # service returns an error envelope and the fetcher reports cleanly.
 NSHM_BASE = "https://earthquake.usgs.gov/nshmp-haz-ws/hazard"
-EDITION = "E2014R1"          # 2014 NSHM, revision 1 — the stable service edition
+EDITION = "E2014"            # 2014 NSHM — the service's stable edition; valid: E2008, E2014, E2014B
 REGION = "COUS"              # Conterminous US
 IMT = "PGA"                  # Peak Ground Acceleration
 VS30 = "760"                 # Site class B/C boundary (ASCE 7 reference)
@@ -76,7 +76,11 @@ def _parse_curve(payload: Any) -> list[tuple[float, float]]:
         return []
     for resp in responses:
         metadata = resp.get("metadata") or {}
-        if str(metadata.get("imt", "")).upper() != "PGA":
+        # NSHM ships `imt` as either a string or {value: 'PGA', ...} —
+        # handle both shapes.
+        imt = metadata.get("imt")
+        imt_value = imt.get("value") if isinstance(imt, dict) else imt
+        if str(imt_value or "").upper() != "PGA":
             continue
         data_blocks = resp.get("data")
         if not isinstance(data_blocks, list):
