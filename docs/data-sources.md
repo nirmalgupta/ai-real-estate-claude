@@ -84,6 +84,9 @@ Implemented adapters:
 | Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | No |
 | Brazoria, TX (48039) | `pipeline.fetch.county.tx_brazoria` | No |
 | Galveston, TX (48167) | `pipeline.fetch.county.tx_galveston` | No |
+| Miami-Dade, FL (12086) | `pipeline.fetch.county.fl_miami_dade` | Yes (FL disclosure) |
+| Broward, FL (12011) | `pipeline.fetch.county.fl_broward` | Yes |
+| Palm Beach, FL (12099) | `pipeline.fetch.county.fl_palmbeach` | Yes |
 
 ---
 

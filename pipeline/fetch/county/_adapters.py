@@ -37,3 +37,8 @@ _try_import("tx_fortbend")        # 48157
 _try_import("tx_montgomery")      # 48339
 _try_import("tx_brazoria")        # 48039
 _try_import("tx_galveston")       # 48167
+
+# Miami metro (FL — disclosure state, sale prices public)
+_try_import("fl_miami_dade")      # 12086
+_try_import("fl_broward")         # 12011
+_try_import("fl_palmbeach")       # 12099
