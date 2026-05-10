@@ -10,6 +10,13 @@ agent-*.md
 property_facts.json
 composite_score.json
 
+# v2 pipeline output
+reports/
+wiki/properties/
+wiki/comps/
+wiki/markets/
+wiki/schools/
+
 # Python
 __pycache__/
 *.pyc
