@@ -167,32 +167,36 @@ def compute_cash_flow(inputs: CashFlowInputs) -> CashFlowResult:
     )
 
 
-def buy_hold_irr(
+# Appreciation scenarios used for the sensitivity table.
+#
+# Why these specific values (revisit if you don't like them):
+#   3%  — long-run US nominal home-price growth (Case-Shiller 1987–2019,
+#         excluding the COVID anomaly).
+#   5%  — typical mid-sized growth metro at trend (Atlanta, Charlotte,
+#         Phoenix in non-bubble years).
+#   7%  — high-growth Sunbelt market post-2010 (Austin, Frisco, Tampa,
+#         Boise) treated as an aggressive but not-bubble assumption.
+#   10% — COVID-era 2020–2022 pace. Included so reports show what
+#         happens under a *continued* boom; this is not the baseline.
+DEFAULT_APPRECIATION_SCENARIOS: tuple[float, ...] = (0.03, 0.05, 0.07, 0.10)
+
+
+def _project_exit(
     list_price: float,
-    inputs: CashFlowInputs,
-    hold_years: int = 7,
-    appreciation_rate: float = 0.045,
-    selling_costs_pct: float = 0.07,
+    cash_in: float,
+    cf_year: float,
+    inputs: "CashFlowInputs",
+    hold_years: int,
+    appreciation_rate: float,
+    selling_costs_pct: float,
 ) -> dict[str, float | None]:
-    """N-year buy-and-hold returns with proper IRR.
-
-    Simple model: constant annual operating cash flow, exit at year-N
-    value minus selling costs and remaining loan balance. Cash flow
-    schedule:
-        t=0:        -cash_invested            (down + closing)
-        t=1..N-1:   annual_cash_flow          (operating, often negative)
-        t=N:        annual_cash_flow + net_proceeds   (operating + exit)
-
-    Returns a dict with final_value, net_proceeds, total_cf, multiple,
-    and `irr` — the discount rate that zeroes NPV across the schedule.
-    `irr` is None if the cash flow series doesn't have a sign change
-    (e.g., never recovers initial investment under any positive rate).
+    """One scenario: project final value, net proceeds, IRR for a given
+    appreciation rate. Returns a dict shaped like one row of a
+    sensitivity table.
     """
-    cf_year = compute_cash_flow(inputs).annual_cash_flow_with_pm
     final_value = list_price * (1 + appreciation_rate) ** hold_years
     selling_costs = final_value * selling_costs_pct
 
-    # Remaining loan balance after `hold_years` of payments
     loan = list_price * (1 - inputs.down_pct)
     r = inputs.mortgage_rate / 12
     n = inputs.term_years * 12
@@ -209,30 +213,93 @@ def buy_hold_irr(
 
     net_proceeds = final_value - selling_costs - remaining_loan
     total_cf = cf_year * hold_years
-    cash_in = list_price * inputs.down_pct + list_price * 0.03
     total_return = total_cf + net_proceeds - cash_in
     multiple = (total_cf + net_proceeds) / cash_in if cash_in else 0.0
 
-    # Build the cash flow schedule and compute proper IRR
     schedule = [-cash_in]
-    for year in range(1, hold_years):
+    for _year in range(1, hold_years):
         schedule.append(cf_year)
     schedule.append(cf_year + net_proceeds)
-    annual_irr = irr(schedule)
 
     return {
-        "hold_years": hold_years,
-        "annual_cash_flow": cf_year,
-        "total_cash_flow": total_cf,
+        "appreciation_rate": appreciation_rate,
         "final_value": final_value,
         "selling_costs": selling_costs,
         "remaining_loan_balance": remaining_loan,
         "net_proceeds": net_proceeds,
-        "cash_invested": cash_in,
+        "total_cash_flow": total_cf,
         "total_return": total_return,
         "multiple": multiple,
-        "irr": annual_irr,
+        "irr": irr(schedule),
         "cash_flow_schedule": schedule,
+    }
+
+
+def buy_hold_irr(
+    list_price: float,
+    inputs: CashFlowInputs,
+    hold_years: int = 7,
+    appreciation_rate: float = 0.045,
+    selling_costs_pct: float = 0.07,
+    sensitivity_rates: tuple[float, ...] | None = None,
+) -> dict:
+    """N-year buy-and-hold returns with proper IRR + sensitivity table.
+
+    The user-facing dict has TWO views:
+
+    1. The chosen `appreciation_rate` view: top-level keys (final_value,
+       irr, multiple, etc.) — backwards compatible with prior callers.
+    2. A `sensitivity` list: one entry per rate in `sensitivity_rates`
+       (default DEFAULT_APPRECIATION_SCENARIOS = 3%, 5%, 7%, 10%).
+       Designed so the report shows a range of outcomes — the
+       single-point projection has been a source of confusion when
+       readers compare it to recent COVID-era price moves that don't
+       reflect a forward baseline.
+
+    Cash flow schedule per scenario:
+        t=0:        -cash_invested            (down + closing)
+        t=1..N-1:   annual_cash_flow          (operating)
+        t=N:        annual_cash_flow + net_proceeds   (operating + exit)
+    """
+    cf_year = compute_cash_flow(inputs).annual_cash_flow_with_pm
+    cash_in = list_price * inputs.down_pct + list_price * 0.03
+
+    base = _project_exit(
+        list_price=list_price, cash_in=cash_in, cf_year=cf_year,
+        inputs=inputs, hold_years=hold_years,
+        appreciation_rate=appreciation_rate,
+        selling_costs_pct=selling_costs_pct,
+    )
+
+    rates = sensitivity_rates if sensitivity_rates is not None \
+            else DEFAULT_APPRECIATION_SCENARIOS
+    sensitivity = [
+        _project_exit(
+            list_price=list_price, cash_in=cash_in, cf_year=cf_year,
+            inputs=inputs, hold_years=hold_years,
+            appreciation_rate=rate,
+            selling_costs_pct=selling_costs_pct,
+        )
+        for rate in rates
+    ]
+
+    return {
+        "hold_years": hold_years,
+        "annual_cash_flow": cf_year,
+        "cash_invested": cash_in,
+        "appreciation_rate": appreciation_rate,
+        # Chosen-rate convenience fields (backwards-compatible).
+        "final_value": base["final_value"],
+        "selling_costs": base["selling_costs"],
+        "remaining_loan_balance": base["remaining_loan_balance"],
+        "net_proceeds": base["net_proceeds"],
+        "total_cash_flow": base["total_cash_flow"],
+        "total_return": base["total_return"],
+        "multiple": base["multiple"],
+        "irr": base["irr"],
+        "cash_flow_schedule": base["cash_flow_schedule"],
+        # New: full sensitivity grid.
+        "sensitivity": sensitivity,
     }
 
 
