@@ -111,6 +111,54 @@ class TestBuyHoldIRR(unittest.TestCase):
             self.assertIsNotNone(bh["irr"])
             self.assertGreater(bh["irr"], 0)
 
+    def test_sensitivity_table_present(self):
+        inputs = CashFlowInputs(
+            list_price=500_000, mortgage_rate=0.06,
+            annual_property_tax=6000, monthly_rent=4_000,
+        )
+        bh = buy_hold_irr(500_000, inputs, hold_years=7,
+                          appreciation_rate=0.045)
+        sens = bh["sensitivity"]
+        self.assertGreaterEqual(len(sens), 4)
+        rates = [row["appreciation_rate"] for row in sens]
+        # Default scenarios include a low (<=3%), mid, and aggressive (>=10%) bound
+        self.assertLessEqual(min(rates), 0.03)
+        self.assertGreaterEqual(max(rates), 0.10)
+
+    def test_sensitivity_monotonic_final_value(self):
+        # All else equal, higher appreciation → higher final value.
+        inputs = CashFlowInputs(
+            list_price=500_000, mortgage_rate=0.06,
+            annual_property_tax=6000, monthly_rent=4_000,
+        )
+        bh = buy_hold_irr(500_000, inputs, hold_years=7)
+        finals = [row["final_value"] for row in bh["sensitivity"]]
+        self.assertEqual(finals, sorted(finals))
+
+    def test_chosen_rate_matches_a_sensitivity_row_when_overlap(self):
+        # If the chosen appreciation rate equals one of the default
+        # scenarios, the top-level final_value should match that row.
+        inputs = CashFlowInputs(
+            list_price=500_000, mortgage_rate=0.06,
+            annual_property_tax=6000, monthly_rent=4_000,
+        )
+        bh = buy_hold_irr(500_000, inputs, hold_years=7,
+                          appreciation_rate=0.05)
+        match = [r for r in bh["sensitivity"] if abs(r["appreciation_rate"] - 0.05) < 1e-9]
+        self.assertEqual(len(match), 1)
+        self.assertAlmostEqual(bh["final_value"], match[0]["final_value"], delta=1.0)
+
+    def test_custom_sensitivity_rates(self):
+        inputs = CashFlowInputs(
+            list_price=500_000, mortgage_rate=0.06,
+            annual_property_tax=6000, monthly_rent=4_000,
+        )
+        bh = buy_hold_irr(500_000, inputs, hold_years=7,
+                          sensitivity_rates=(0.0, 0.06))
+        self.assertEqual(len(bh["sensitivity"]), 2)
+        self.assertEqual(bh["sensitivity"][0]["appreciation_rate"], 0.0)
+        self.assertEqual(bh["sensitivity"][1]["appreciation_rate"], 0.06)
+
 
 class TestBreakEvenPrice(unittest.TestCase):
     def test_break_even_returns_reasonable(self):

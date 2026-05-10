@@ -136,9 +136,23 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  break-even rent:      ${cf.break_even_rent():>12,.0f}")
     print(f"  break-even price:     ${be_price:>12,.0f}")
     if bh.get("irr") is not None:
-        print(f"  {args.hold_years}-yr IRR:              {bh['irr'] * 100:>11,.2f}%")
+        print(f"  {args.hold_years}-yr IRR:              {bh['irr'] * 100:>11,.2f}%  (@ {args.appreciation*100:.1f}% appreciation)")
     else:
         print(f"  {args.hold_years}-yr IRR:              undefined (no sign change in cash flow)")
+
+    print()
+    print(f"  {args.hold_years}-yr appreciation sensitivity:")
+    print(f"  {'rate':>8} {'final value':>15} {'net proceeds':>15} {'total return':>15} {'IRR':>9}")
+    for row in bh.get("sensitivity", []):
+        rate = row["appreciation_rate"]
+        irr_str = f"{row['irr'] * 100:>8.2f}%" if row.get("irr") is not None else "      n/a"
+        print(
+            f"  {rate*100:>7.1f}% "
+            f"${row['final_value']:>13,.0f} "
+            f"${row['net_proceeds']:>13,.0f} "
+            f"${row['total_return']:>13,.0f} "
+            f"{irr_str}"
+        )
     return 0
 
 

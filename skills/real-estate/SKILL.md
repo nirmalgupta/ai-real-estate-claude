@@ -164,7 +164,7 @@ as `reports/<slug>/sections/<n>.md`:
 | `3-rental.md` | Paste numbers from `computed.json`. Frame the verdict: positive/negative cash flow, key ratios, break-even points. **Note the tax-reassessment time bomb** if list price >> CAD `tax_assessed_value` (TX 10% homestead cap means new buyers reset to market). |
 | `4-neighborhood.md` | **Schools first** — pull `nearest_elementary_schools` / `_middle_schools` / `_high_schools` from the wiki frontmatter. Each school carries name, distance, locale code, NCES ID, grade range. **Walkability/convenience** — use `nearest_supermarkets_nearest_miles`, `nearest_pharmacies_nearest_miles`, `nearest_restaurants_nearest_miles` from OSM as concrete walkability signals (<0.5mi grocery = urban infill, 0.5–2 = suburban, >5 = rural). Add Census ACS demographics, growth catalysts. |
 | `5-risk.md` | FEMA flood zone (from wiki). **Storm history** — pull `storm_tornado_ef1plus_10yr_count`, `storm_hail_15in_plus_10yr_count`, `storm_wind_58mph_plus_10yr_count` from wiki and translate into insurance/roof-replacement implications (hail is the #1 driver of TX homeowner claims). **Seismic** — `seismic_pga_2pct_50yr` interpreted: <0.1g low, 0.1–0.3g moderate, >0.3g high. |
-| `6-investment.md` | Buy-and-hold 7-yr (from `computed.json`), BRRRR feasibility, flip math. **Use CAD owner data** — if `owner_name` shows the same individual for 10+ years and the property is way under-improved vs. neighbors, that's a value-add candidate. |
+| `6-investment.md` | Buy-and-hold 7-yr (from `computed.json`), BRRRR feasibility, flip math. **Always show the full appreciation-sensitivity table from `computed.json["buy_hold"]["sensitivity"]`** — final value / net proceeds / total return / IRR at 3% / 5% / 7% / 10%. A single point estimate misleads when readers anchor on COVID-era doubling (2020–2022 sunbelt was ~10%/yr; that is not a forward baseline). The table lets the reader pick the rate they believe and read the answer. **Use CAD owner data** — if `owner_name` shows the same individual for 10+ years and the property is way under-improved vs. neighbors, that's a value-add candidate. |
 | `7-market.md` | Current submarket conditions: DOM, inventory, price trend YoY. Use WebSearch on Redfin/HAR/Realtor neighborhood pages. |
 | `8-recommendation.md` | Suggested offer range, action (Buy/Hold/Pass), walk-away ceilings (owner-occupant vs. investor), verify-before-offering checklist. |
 
@@ -235,6 +235,14 @@ Tell the user:
   description is sometimes more agent-written; Redfin's photo count
   and date-posted are useful "professional listing?" signals. When
   both succeed they're complementary, not redundant.
+- **Appreciation calibration:** the buy-and-hold model defaults to 4.5%
+  forward appreciation, with sensitivity at 3% / 5% / 7% / 10%. Anchor
+  for the reader: 3% ≈ long-run US nominal (Case-Shiller 1987–2019);
+  5% ≈ trend mid-sized growth metro; 7% ≈ aggressive Sunbelt post-2010;
+  10% ≈ COVID 2020–2022 anomaly (NOT a forward baseline). When the
+  reader compares the projection to "houses doubled in 5 years",
+  remind them that pace was a one-time event and show the sensitivity
+  table rather than picking one rate.
 - **Where the schema/registry lives:** `pipeline/fetch/county/__init__.py`
   is the registry; `pipeline/fetch/county/_<state>_base.py` holds the
   TX/FL/NC defaults; `docs/data-sources.md` lists the supported
