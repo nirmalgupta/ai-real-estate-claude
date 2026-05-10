@@ -68,30 +68,37 @@ schema, no national index.
 The CAD registry is plug-in: see `pipeline/fetch/county/__init__.py`.
 Adding an adapter is a 200–500-line per-county project.
 
-Implemented adapters:
+Implemented adapters (✅ = live-smoke verified, ⚠️ = registered but service URL not yet identified):
 
-| County (FIPS) | Module | Sale price disclosed? |
-|---|---|---|
-| Denton, TX (48121) | `pipeline.fetch.county.tx_denton` | No (TX non-disclosure) |
-| Dallas, TX (48113) | `pipeline.fetch.county.tx_dallas` | No |
-| Tarrant, TX (48439) | `pipeline.fetch.county.tx_tarrant` | No |
-| Collin, TX (48085) | `pipeline.fetch.county.tx_collin` | No |
-| Travis, TX (48453) | `pipeline.fetch.county.tx_travis` | No |
-| Williamson, TX (48491) | `pipeline.fetch.county.tx_williamson` | No |
-| Hays, TX (48209) | `pipeline.fetch.county.tx_hays` | No |
-| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | No |
-| Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | No |
-| Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | No |
-| Brazoria, TX (48039) | `pipeline.fetch.county.tx_brazoria` | No |
-| Galveston, TX (48167) | `pipeline.fetch.county.tx_galveston` | No |
-| Miami-Dade, FL (12086) | `pipeline.fetch.county.fl_miami_dade` | Yes (FL disclosure) |
-| Broward, FL (12011) | `pipeline.fetch.county.fl_broward` | Yes |
-| Palm Beach, FL (12099) | `pipeline.fetch.county.fl_palmbeach` | Yes |
-| Wake, NC (37183) | `pipeline.fetch.county.nc_wake` | Yes (NC disclosure) |
-| Durham, NC (37063) | `pipeline.fetch.county.nc_durham` | Yes |
-| Orange, NC (37135) | `pipeline.fetch.county.nc_orange` | Yes |
-| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | Yes |
-| Johnston, NC (37101) | `pipeline.fetch.county.nc_johnston` | Yes |
+| County (FIPS) | Module | Status | Sale price disclosed? |
+|---|---|---|---|
+| Denton, TX (48121) | `pipeline.fetch.county.tx_denton` | ✅ | No (TX non-disclosure) |
+| Dallas, TX (48113) | `pipeline.fetch.county.tx_dallas` | ✅ | No (parcel + owner only — DCAD does not publish values via REST) |
+| Tarrant, TX (48439) | `pipeline.fetch.county.tx_tarrant` | ⚠️ | No |
+| Collin, TX (48085) | `pipeline.fetch.county.tx_collin` | ✅ | No |
+| Travis, TX (48453) | `pipeline.fetch.county.tx_travis` | ✅ | No (TCAD public layer — partial, land value only) |
+| Williamson, TX (48491) | `pipeline.fetch.county.tx_williamson` | ✅ | No |
+| Hays, TX (48209) | `pipeline.fetch.county.tx_hays` | ✅ | No |
+| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | ⚠️ | No |
+| Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | ✅ | No |
+| Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | ✅ | No (parcel + owner + year built only — values not in public REST) |
+| Brazoria, TX (48039) | `pipeline.fetch.county.tx_brazoria` | ✅ | No |
+| Galveston, TX (48167) | `pipeline.fetch.county.tx_galveston` | ✅ | No |
+| Miami-Dade, FL (12086) | `pipeline.fetch.county.fl_miami_dade` | ✅ | Yes (FL disclosure) |
+| Broward, FL (12011) | `pipeline.fetch.county.fl_broward` | ✅ | Yes |
+| Palm Beach, FL (12099) | `pipeline.fetch.county.fl_palmbeach` | ✅ | Yes |
+| Wake, NC (37183) | `pipeline.fetch.county.nc_wake` | ✅ | Yes (NC disclosure) |
+| Durham, NC (37063) | `pipeline.fetch.county.nc_durham` | ⚠️ | Yes |
+| Orange, NC (37135) | `pipeline.fetch.county.nc_orange` | ✅ | Yes |
+| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | ⚠️ | Yes |
+| Johnston, NC (37101) | `pipeline.fetch.county.nc_johnston` | ✅ | Yes |
+
+**⚠️ counties** (Tarrant, Harris, Durham, Chatham): no public ArcGIS REST
+endpoint with a working spatial point-query has been identified for the
+full tax roll. The adapters are registered (so the registry is complete)
+but return a clean `service_url not configured` error and the pipeline
+keeps running. Update each module's `service_url` once a working
+endpoint is identified.
 
 ---
 

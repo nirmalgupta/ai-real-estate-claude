@@ -13,8 +13,17 @@ class GalvestonTxCAD(TxParcelCAD):
     full_county_fips = "48167"
     county_label = "Galveston County, TX"
     service_url = (
-        "https://gis.galvestoncountytx.gov/arcgis/rest/services/Parcels/MapServer/0"
+        "https://services2.arcgis.com/uGo7PKALPg93ZiO2/arcgis/rest/services/"
+        "Galveston_County_Appraisal_District_Parcels_and_Lot_Lines/"
+        "FeatureServer/2"
     )
+
+    attr_map = {
+        "tax_assessed_value":     ["VAL_TOT"],
+        "tax_market_value":       ["VAL_TOT"],
+        "legal_description":      ["LEGAL"],
+        "situs_address":          ["SITUS", "ADDRESS"],
+    }
 
 
 register("48167", GalvestonTxCAD)
