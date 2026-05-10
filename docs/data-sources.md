@@ -73,6 +73,9 @@ Implemented adapters:
 | County (FIPS) | Module | Sale price disclosed? |
 |---|---|---|
 | Denton, TX (48121) | `pipeline.fetch.county.tx_denton` | No (TX non-disclosure) |
+| Dallas, TX (48113) | `pipeline.fetch.county.tx_dallas` | No |
+| Tarrant, TX (48439) | `pipeline.fetch.county.tx_tarrant` | No |
+| Collin, TX (48085) | `pipeline.fetch.county.tx_collin` | No |
 | Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | No |
 | Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | No |
 | Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | No |

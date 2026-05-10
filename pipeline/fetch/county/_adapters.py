@@ -22,6 +22,9 @@ def _try_import(modname: str) -> None:
 
 # DFW
 _try_import("tx_denton")          # 48121
+_try_import("tx_dallas")          # 48113
+_try_import("tx_tarrant")         # 48439
+_try_import("tx_collin")          # 48085
 
 # Houston metro
 _try_import("tx_harris")          # 48201
