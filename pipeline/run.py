@@ -14,6 +14,8 @@ from pathlib import Path
 from pipeline.common.address import geocode
 from pipeline.fetch.census_acs import CensusACSSource
 from pipeline.fetch.fema_nfhl import FemaNFHLSource
+from pipeline.fetch.hud_fmr import HudFmrSource
+from pipeline.fetch.movoto import MovotoSource
 from pipeline.wiki.builder import write_page
 
 DEFAULT_WIKI_ROOT = Path(__file__).resolve().parent.parent / "wiki"
@@ -28,6 +30,12 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_WIKI_ROOT,
         help="Wiki root directory (default: ./wiki)",
     )
+    p.add_argument(
+        "--movoto-url",
+        default=None,
+        help="Optional Movoto listing URL to use directly. Bypasses search "
+             "(which is unreliable). Find via Google `site:movoto.com \"<address>\"`.",
+    )
     args = p.parse_args(argv)
 
     print(f"[1/3] Geocoding: {args.address}")
@@ -36,8 +44,13 @@ def main(argv: list[str] | None = None) -> int:
     print(f"      lat/lon: {addr.lat}, {addr.lon}")
     print(f"      tract:   {addr.full_tract_fips}  ({addr.county_name} County, {addr.state_abbr})")
 
-    print("[2/3] Fetching national sources...")
-    sources = [FemaNFHLSource(), CensusACSSource()]
+    print("[2/3] Fetching sources...")
+    sources = [
+        FemaNFHLSource(),
+        CensusACSSource(),
+        HudFmrSource(),
+        MovotoSource(listing_url=args.movoto_url),
+    ]
     results = []
     for s in sources:
         print(f"      - {s.name}...", end=" ", flush=True)
