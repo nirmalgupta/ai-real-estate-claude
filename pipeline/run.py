@@ -19,6 +19,8 @@ from pipeline.fetch.hud_fmr import HudFmrSource
 from pipeline.fetch.movoto import MovotoSource
 from pipeline.fetch.nces import NCESSource
 from pipeline.fetch.noaa_spc import NoaaSpcSource
+from pipeline.fetch.osm_amenities import OsmAmenitiesSource
+from pipeline.fetch.redfin import RedfinSource
 from pipeline.fetch.usgs_eq import UsgsEqSource
 from pipeline.wiki.builder import write_page
 
@@ -40,6 +42,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional Movoto listing URL to use directly. Bypasses search "
              "(which is unreliable). Find via Google `site:movoto.com \"<address>\"`.",
     )
+    p.add_argument(
+        "--redfin-url",
+        default=None,
+        help="Optional Redfin listing URL for deep per-property research. "
+             "Use `python3 -m pipeline.search` to find candidates first.",
+    )
     args = p.parse_args(argv)
 
     print(f"[1/3] Geocoding: {args.address}")
@@ -56,7 +64,9 @@ def main(argv: list[str] | None = None) -> int:
         NCESSource(),
         NoaaSpcSource(),
         UsgsEqSource(),
+        OsmAmenitiesSource(),
         MovotoSource(listing_url=args.movoto_url),
+        RedfinSource(listing_url=args.redfin_url),
     ]
 
     # County CAD adapter is plug-in: included only if registered for this

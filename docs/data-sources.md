@@ -32,6 +32,7 @@ Legend:
 | **BLS LAUS** (Local Area Unemployment Statistics) | Unemployment rate by county. | None | 🔧 |
 | **BEA Regional** | Per-capita personal income by MSA/county. | Free key | 🔧 |
 | **DOT AADT** (Annual Average Daily Traffic) | Traffic counts by road segment — useful for "is this on a busy road" assessment. | None | 🔧 |
+| **OpenStreetMap Overpass** | Nearest supermarkets, convenience stores, pharmacies, restaurants by lat/lon. | None | ✅ `pipeline.fetch.osm_amenities` |
 
 ---
 
@@ -41,7 +42,8 @@ Legend:
 |---|---|---|---|
 | **Movoto** | List price, beds/baths, sqft, lot, year built, photos, listing description. | ✅ `pipeline.fetch.movoto` | Direct URL works; their search API is JS-rendered and 404s plain HTTP. Use `--movoto-url` override. |
 | **Zillow** | Zestimate + listing data. | 🚫 | Aggressive anti-bot. Returns 403 to plain HTTP. Would need Playwright + stealth or a paid API. |
-| **Redfin** | Redfin Estimate + listing data. | 🚫 | Same as Zillow. |
+| **Redfin** (per-property HTML) | Listing price, beds/baths/sqft/year/description, photos, MLS#. | ✅ `pipeline.fetch.redfin` | HTML detail page returns 200 to plain HTTP with browser UA; structured data comes from the embedded `schema.org/RealEstateListing` JSON-LD block. The cleaner JSON APIs (`stingray/api/home/details/*`) are CloudFront-blocked. Use `--redfin-url`. |
+| **Redfin** (search by region) | List of for-sale listings within a bbox: address, price, beds/baths, sqft, lot, year, HOA, MLS#, lat/lon. | ✅ `pipeline.search.redfin` | Uses the `stingray/api/gis-csv` endpoint. Powers `python3 -m pipeline.search "<city or zip>"`. |
 | **Realtor.com** | MLS-fed listings. | 🚫 | Same. Cloudflare-protected. |
 | **HAR.com** | Houston-area MLS feed. | 🚫 | 403s plain HTTP. |
 | **Compass** | High-end listings; needs login for full details. | 🚫 | Requires authenticated session. |
