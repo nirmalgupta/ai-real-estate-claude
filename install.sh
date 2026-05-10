@@ -22,7 +22,10 @@ echo ""
 echo "Installing sub-skills..."
 for d in "${SCRIPT_DIR}/skills/"*/; do
     name="$(basename "${d}")"
-    cp -R "${d}" "${CLAUDE_DIR}/skills/"
+    # Strip trailing slash: BSD cp treats `cp -R src/ dst/` as "copy contents of src
+    # into dst", which would dump SKILL.md straight into ${CLAUDE_DIR}/skills/
+    # instead of creating the per-skill subdirectory.
+    cp -R "${d%/}" "${CLAUDE_DIR}/skills/"
     echo "  + ${name}"
 done
 
