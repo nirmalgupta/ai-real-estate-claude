@@ -1,0 +1,106 @@
+# Project board sync — replaces the missing Project v2 UI workflows.
+#
+# Why this file exists
+# --------------------
+# GitHub Projects v2 has built-in workflows for "Auto-add to project",
+# "Item closed", and "Pull request merged" that automatically move cards
+# between columns. They can only be toggled in the project's UI; the
+# GraphQL API exposes deleteProjectV2Workflow but no enable/update
+# mutation. This Actions workflow runs the same logic server-side so we
+# don't need anyone to click in the UI.
+#
+# What it does
+# ------------
+# * Issue or PR opened (or reopened) → add it to the project, status = Backlog
+# * Issue closed → status = Done
+# * Pull request merged → status = Done
+# * Pull request closed without merge → no change (left in whatever column it
+#   was in; "wontfix" closes don't need to become Done)
+#
+# One-time setup required
+# -----------------------
+# The default GITHUB_TOKEN does NOT have access to user-scoped Projects v2.
+# Create a Personal Access Token and save it as a repo secret:
+#
+#   1. https://github.com/settings/tokens?type=beta  (fine-grained PAT)
+#      - Resource owner: nirmalgupta
+#      - Repository access: Only select repositories → ai-real-estate-claude
+#      - Repository permissions: Issues (Read), Pull requests (Read), Metadata (Read)
+#      - Account permissions: User projects → Read and write
+#      - Generate the token, copy it.
+#
+#   2. https://github.com/nirmalgupta/ai-real-estate-claude/settings/secrets/actions/new
+#      - Name: PROJECT_TOKEN
+#      - Value: paste the token from step 1
+#
+# Classic PATs with `project` scope also work; fine-grained is more conservative.
+
+name: Project sync
+
+on:
+  issues:
+    types: [opened, reopened, closed]
+  pull_request:
+    types: [opened, reopened, closed]
+
+# These IDs are stable identifiers for the "ai-real-estate-claude" Project v2.
+# If you ever recreate the project, refresh them via:
+#   gh project list --owner nirmalgupta
+#   gh project field-list <num> --owner nirmalgupta
+#   gh api graphql -f query='{ node(id:"<status_field_id>"){ ... on ProjectV2SingleSelectField { options { id name }}}}'
+env:
+  PROJECT_ID: PVT_kwHOAHmRQ84BXP2-
+  STATUS_FIELD: PVTSSF_lAHOAHmRQ84BXP2-zhSeBUg
+  BACKLOG_OPT: 310c1d6f
+  DONE_OPT: 47e53702
+
+jobs:
+  add-on-open:
+    name: Add new items to project (status = Backlog)
+    if: github.event.action == 'opened' || github.event.action == 'reopened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upsert project item and set Backlog
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          CONTENT_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
+        run: |
+          set -euo pipefail
+          # addProjectV2ItemById is idempotent — returns the existing item
+          # if the content is already on the board.
+          ITEM_ID=$(gh api graphql \
+            -f query='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}' \
+            -F p="$PROJECT_ID" -F c="$CONTENT_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')
+          echo "Item: $ITEM_ID"
+
+          gh api graphql \
+            -f query='mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$v}}){projectV2Item{id}}}' \
+            -F p="$PROJECT_ID" -F i="$ITEM_ID" -F f="$STATUS_FIELD" -F v="$BACKLOG_OPT" \
+            >/dev/null
+
+  done-on-close:
+    name: Move closed items to Done
+    # Run on issue closures unconditionally, and on PR closures only when merged.
+    # Un-merged PR closures (declined / superseded) leave the card where it was.
+    if: |
+      github.event.action == 'closed' &&
+      (github.event.issue != null || github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upsert project item and set Done
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          CONTENT_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
+        run: |
+          set -euo pipefail
+          ITEM_ID=$(gh api graphql \
+            -f query='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}' \
+            -F p="$PROJECT_ID" -F c="$CONTENT_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')
+          echo "Item: $ITEM_ID"
+
+          gh api graphql \
+            -f query='mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$v}}){projectV2Item{id}}}' \
+            -F p="$PROJECT_ID" -F i="$ITEM_ID" -F f="$STATUS_FIELD" -F v="$DONE_OPT" \
+            >/dev/null
