@@ -60,10 +60,10 @@ then run Phase A on the chosen URL(s).
 The user provides a US address (or a listing URL). Normalize to:
 `123 Main St, City, ST 12345`.
 
-If the user pasted a Movoto URL, capture it — you'll pass it as
-`--movoto-url`. Otherwise try to find one via WebSearch:
-`site:movoto.com "<address>"`. If that fails, the Movoto fetcher will
-no-op and the analysis runs without listing data.
+Redfin is the default listing source. If the user pasted a Redfin URL,
+capture it as `--redfin-url`; otherwise run Phase 0 first to discover
+one. Movoto is now manual-URL only — pass `--movoto-url` if the user
+happens to have a Movoto link Redfin doesn't carry, otherwise skip it.
 
 ---
 
@@ -74,9 +74,10 @@ python3 -m pipeline.run "<full address>" \\
     [--movoto-url "<url>"] [--redfin-url "<url>"]
 ```
 
-If the user just ran Phase 0, pass the listing URL(s) from the chosen
-result. Otherwise either find URLs via Google (`site:movoto.com "<addr>"`
-or `site:redfin.com "<addr>"`) or skip — those fetchers no-op cleanly.
+If the user just ran Phase 0, pass the chosen Redfin listing URL as
+`--redfin-url`. Otherwise find one via WebSearch
+(`site:redfin.com "<addr>"`) or skip — the fetcher no-ops cleanly when
+no URL is supplied. Movoto is manual-URL only; don't auto-search it.
 
 Sources the pipeline hits per run:
 
@@ -91,7 +92,8 @@ Sources the pipeline hits per run:
 | USGS NSHM | seismic PGA at 2%-in-50yr (ASCE 7 design-basis level) |
 | OSM Overpass amenities | nearest 5 supermarkets, convenience stores, pharmacies, restaurants (with brand + distance). Companion `*_nearest_miles` facts for quick scoring. |
 | County CAD adapter | tax-assessed value, market value, owner, year built, legal description, lot size, sale price + date *(disclosure states only)* — **runs only if a CAD adapter is registered for the county** |
-| Movoto | list price, beds/baths/sqft/lot/year, photos, listing description |
+| Redfin (JSON-LD) | list price *(or `redfin_estimate` if off-market)*, beds/baths/sqft/year, photos, sale-history table with implied appreciation |
+| Movoto *(manual URL only)* | regex-extracted list price, beds/baths/sqft/year — runs only when `--movoto-url` is supplied |
 | Redfin (per-property HTML) | list price, beds/baths, sqft, year built, listing description, photo count, date posted. Saves raw HTML for LLM extraction. Pass `--redfin-url`. |
 
 Output: `wiki/properties/<slug>.md` with structured JSON frontmatter
@@ -121,11 +123,12 @@ county appraisal district directly."
 
 ## Phase B — Extract richer fields from raw listing HTML (optional)
 
-If `wiki/raw/<slug>.movoto.html` exists (Movoto succeeded), open it
-and extract any fields the regex layer missed: HOA, days on market,
-features (pool, view, garage, finished basement), price history,
-school assignments, listing agent narrative. Append the new facts to
-the wiki page's frontmatter as `manual_extract: {...}`.
+If `wiki/raw/<slug>.redfin.html` (default) or `<slug>.movoto.html`
+(manual URL only) exists, open it and extract any fields the regex /
+JSON-LD layers missed: HOA, days on market, features (pool, view,
+garage, finished basement), school assignments, listing agent
+narrative. Append the new facts to the wiki page's frontmatter as
+`manual_extract: {...}`.
 
 ---
 
@@ -212,9 +215,9 @@ Tell the user:
 - **Where errors land:** if a fetcher fails, the wiki page logs it in
   the "Fetch errors" section. Mention any failures in your final
   summary so the user knows what wasn't included.
-- **Movoto blocks:** if Movoto returns 401/403/429, ask the user to
-  paste the listing URL manually (find via Google
-  `site:movoto.com "<address>"`).
+- **Redfin / Movoto URLs:** Redfin is the default; Movoto only runs
+  when `--movoto-url` is supplied. If Redfin is 401/403/429, ask the
+  user for a listing URL (Redfin or Movoto) instead.
 - **HUD API key:** rent benchmarks are a "nice to have." If
   `HUD_API_KEY` isn't set, skip and use the listing aggregator's rent
   estimate or your own research instead.

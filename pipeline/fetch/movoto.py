@@ -1,31 +1,24 @@
-"""Movoto.com listing scraper.
+"""Movoto.com listing scraper (manual-URL only).
 
-Movoto has been the most reliable of the listing aggregators in our
-testing — Zillow / Redfin / Realtor.com / HAR all 403 generic clients
-on a regular basis. Movoto generally lets through requests with
-realistic browser headers.
+Movoto's address search is JS-rendered and never returned a usable
+listing URL from our HTTP client. Redfin (`pipeline.fetch.redfin`) now
+covers the same fields with a more reliable JSON-LD-backed scrape, so
+the auto-discovery path has been retired (issue #39).
 
-Strategy:
-1. Search by address → resolve to canonical listing URL
-2. Fetch listing page → save raw HTML to wiki/raw/<slug>.html
-3. Extract a few high-confidence fields with regex (price, beds, baths,
-   sqft) — anything more nuanced is left for the LLM extraction layer
-
-The raw HTML on disk is the durable artifact. Even when extraction
-heuristics drift, the LLM can re-process the saved HTML.
+Movoto still runs when the user passes `--movoto-url <url>` explicitly
+— useful when Redfin doesn't carry the listing but Movoto does. With
+no URL the fetcher returns a clean skip, not an error.
 """
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from urllib.parse import quote_plus
 
 import httpx
 
 from pipeline.common.address import Address
 from pipeline.fetch.base import Fact, FetchResult, Source
 
-MOVOTO_SEARCH = "https://www.movoto.com/search/?searchType=forsale&q={q}"
 DEFAULT_RAW_DIR = Path(__file__).resolve().parent.parent.parent / "wiki" / "raw"
 
 # Realistic Chrome-on-macOS UA. Avoids the "python-httpx/X.Y" default that
@@ -80,16 +73,16 @@ class MovotoSource(Source):
         self.listing_url_override = listing_url
 
     def fetch(self, address: Address) -> FetchResult:
-        listing_url = self.listing_url_override or self._find_listing_url(address)
+        listing_url = self.listing_url_override
         if listing_url is None:
             return FetchResult(
                 source_name=self.name,
                 address=address,
                 facts={},
                 error=(
-                    "No Movoto listing found. Movoto's search API is JS-rendered and "
-                    "rejects HTTP clients. Pass --movoto-url <listing-url> to bypass, or "
-                    "find the URL manually via Google `site:movoto.com \"<address>\"`."
+                    "Movoto skipped — no --movoto-url provided. Redfin is "
+                    "the default listing source; pass --movoto-url <url> "
+                    "only when Movoto carries a listing Redfin doesn't."
                 ),
             )
 
@@ -164,39 +157,3 @@ class MovotoSource(Source):
             raw={"url": listing_url, "html_path": str(raw_path), "html_bytes": len(html)},
         )
 
-    def _find_listing_url(self, address: Address) -> str | None:
-        """Search Movoto for the address and pluck the first /<city-st>/...
-        listing URL out of the results page."""
-        q = quote_plus(address.matched)
-        try:
-            r = httpx.get(
-                MOVOTO_SEARCH.format(q=q),
-                headers=BROWSER_HEADERS,
-                timeout=30.0,
-                follow_redirects=True,
-            )
-        except httpx.HTTPError:
-            return None
-        if r.status_code != 200:
-            return None
-
-        # Direct redirect path (Movoto sometimes 302s straight to the listing)
-        if "/homedetails/" in str(r.url) or re.search(r"/[a-z\-]+-tx/[\d\w\-]+-tx-\d{5}", str(r.url)):
-            return str(r.url)
-
-        # Otherwise look for the first listing-shaped link in the page
-        m = re.search(
-            r'href="(https?://www\.movoto\.com/[a-z\-]+-[a-z]{2}/[^"]+_\d+/)"',
-            r.text,
-        )
-        if m:
-            return m.group(1)
-
-        m = re.search(
-            r'href="(/[a-z\-]+-[a-z]{2}/[^"]+_\d+/)"',
-            r.text,
-        )
-        if m:
-            return f"https://www.movoto.com{m.group(1)}"
-
-        return None
