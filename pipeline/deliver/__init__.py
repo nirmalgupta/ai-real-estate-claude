@@ -122,6 +122,8 @@ def send(channel_name: str, pdf_path: Path, body: str,
 # isn't using.
 from pipeline.deliver.email import EmailChannel  # noqa: E402
 from pipeline.deliver.imessage import ImessageChannel  # noqa: E402
+from pipeline.deliver.telegram import TelegramChannel  # noqa: E402
 
 register(ImessageChannel())
 register(EmailChannel())
+register(TelegramChannel())
