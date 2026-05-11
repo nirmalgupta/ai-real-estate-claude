@@ -15,12 +15,12 @@ opaque scheme) but the API also accepts a 5-digit county FIPS code.
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 import httpx
 
 from pipeline.common.address import Address
+from pipeline.common.config import api_key
 from pipeline.fetch.base import Fact, FetchResult, Source
 
 HUD_FMR_BASE = "https://www.huduser.gov/hudapi/public/fmr/data"
@@ -30,15 +30,16 @@ class HudFmrSource(Source):
     name = "hud_fmr"
 
     def fetch(self, address: Address) -> FetchResult:
-        api_key = os.environ.get("HUD_API_KEY")
-        if not api_key:
+        key = api_key("hud", env_var="HUD_API_KEY")
+        if not key:
             return FetchResult(
                 source_name=self.name,
                 address=address,
                 facts={},
                 error=(
-                    "HUD_API_KEY not set. Get a free key at "
-                    "https://www.huduser.gov/hudapi/ and `export HUD_API_KEY=...`"
+                    "HUD API key not configured — skipping. Re-run "
+                    "install.sh and enable HUD to add it, or set "
+                    "HUD_API_KEY in your shell."
                 ),
             )
 
@@ -48,7 +49,7 @@ class HudFmrSource(Source):
         county_fips = address.full_county_fips
         url = f"{HUD_FMR_BASE}/{county_fips}"
         params = {"year": str(year)}
-        headers = {"Authorization": f"Bearer {api_key}"}
+        headers = {"Authorization": f"Bearer {key}"}
 
         try:
             r = httpx.get(url, params=params, headers=headers, timeout=30.0)

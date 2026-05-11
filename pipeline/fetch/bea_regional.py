@@ -15,11 +15,11 @@ ACS median household income because it includes investment income.
 from __future__ import annotations
 
 import json
-import os
 
 import httpx
 
 from pipeline.common.address import Address
+from pipeline.common.config import api_key
 from pipeline.fetch.base import Fact, FetchResult, Source
 
 BEA_API = "https://apps.bea.gov/api/data/"
@@ -65,20 +65,21 @@ class BeaRegionalSource(Source):
     name = "bea_regional"
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or os.environ.get("BEA_API_KEY")
+        self._explicit_key = api_key
 
     def fetch(self, address: Address) -> FetchResult:
-        if not self.api_key:
+        key = self._explicit_key or api_key("bea", env_var="BEA_API_KEY")
+        if not key:
             return FetchResult(
                 source_name=self.name, address=address, facts={},
-                error="BEA_API_KEY not set — skipping. Get a free key at "
-                      "https://apps.bea.gov/api/signup/ if you want county "
-                      "per-capita personal income added to analyses.",
+                error="BEA API key not configured — skipping. Re-run "
+                      "install.sh and enable BEA to add it, or set "
+                      "BEA_API_KEY in your shell.",
             )
 
         county_fips = f"{address.state_fips}{address.county_fips}"
         params = {
-            "UserID": self.api_key,
+            "UserID": key,
             "method": "GetData",
             "datasetname": "Regional",
             "TableName": TABLE,
