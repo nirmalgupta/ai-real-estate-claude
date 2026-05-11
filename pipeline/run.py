@@ -25,6 +25,7 @@ from pipeline.fetch.noaa_normals import NoaaNormalsSource
 from pipeline.fetch.noaa_spc import NoaaSpcSource
 from pipeline.fetch.osm_amenities import OsmAmenitiesSource
 from pipeline.fetch.redfin import RedfinSource
+from pipeline.fetch.redfin_comps import RedfinCompsSource
 from pipeline.fetch.usgs_eq import UsgsEqSource
 from pipeline.wiki.builder import write_page
 
@@ -100,6 +101,38 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"FAILED: {r.error}")
         results.append(r)
+
+    # Sold-comps lookup runs last because it needs sqft/beds/type from
+    # earlier fetchers (Redfin / CAD). Skip if we don't have enough to
+    # filter — running the strict-radius query without a sqft anchor
+    # would return random nearby sales.
+    facts_so_far: dict = {}
+    for r in results:
+        for k, fact in r.facts.items():
+            facts_so_far.setdefault(k, fact.value)
+    subject_sqft = (
+        facts_so_far.get("living_area_sqft_listing")
+        or facts_so_far.get("sqft")
+        or facts_so_far.get("living_area")
+    )
+    subject_beds = facts_so_far.get("beds")
+    subject_type = (
+        facts_so_far.get("property_type_redfin") or facts_so_far.get("property_type")
+    )
+    if subject_sqft and subject_beds:
+        print(f"      - redfin_comps...", end=" ", flush=True)
+        rc = RedfinCompsSource(
+            subject_sqft=int(subject_sqft) if subject_sqft else None,
+            subject_beds=int(subject_beds) if subject_beds else None,
+            subject_type=subject_type,
+        ).fetch(addr)
+        if rc.ok:
+            print(f"ok ({len(rc.facts)} fact(s))")
+        else:
+            print(f"FAILED: {rc.error}")
+        results.append(rc)
+    else:
+        print("      - redfin_comps... skipped (need sqft + beds from earlier fetchers)")
 
     print(f"[3/3] Writing wiki page to {args.wiki}/properties/{addr.slug}.md")
     out = write_page(addr, results, args.wiki)
