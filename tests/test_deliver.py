@@ -3,7 +3,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from pipeline.deliver import Channel, SendResult, enabled_channels, send
+from pipeline.deliver import (
+    Channel, SendResult, enabled_channels, send, send_to_many,
+)
 
 
 class _FakeChannel(Channel):
@@ -71,6 +73,22 @@ class DeliveryRegistryTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertIn("too large", result.note)
         self.assertEqual(len(self.fake.calls), 0)
+
+    def test_send_to_many_preserves_order(self):
+        cfg = {"channels": {"_fake": {"token": "abc"}}}
+        pdf = self._make_tmp_pdf(100)
+        results = send_to_many(["_fake", "nope"], pdf, "hi", config=cfg)
+        self.assertEqual(list(results.keys()), ["_fake", "nope"])
+        self.assertTrue(results["_fake"].ok)
+        self.assertFalse(results["nope"].ok)
+
+    def test_send_to_many_continues_past_failure(self):
+        cfg = {"channels": {"_fake": {"token": "abc"}}}
+        pdf = self._make_tmp_pdf(100)
+        results = send_to_many(["nope", "_fake"], pdf, "hi", config=cfg)
+        # The unknown channel must not short-circuit _fake
+        self.assertEqual(len(self.fake.calls), 1)
+        self.assertTrue(results["_fake"].ok)
 
     def test_send_unknown_channel(self):
         cfg = {"channels": {"_fake": {"token": "abc"}}}

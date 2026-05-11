@@ -86,6 +86,21 @@ def enabled_channels(config: dict | None = None) -> list[str]:
     return enabled
 
 
+def send_to_many(channel_names: list[str], pdf_path: Path, body: str,
+                 config: dict | None = None) -> dict[str, SendResult]:
+    """Dispatch one PDF to multiple channels. Returns {name: SendResult}.
+
+    Order is preserved; channels are sent sequentially so a failure on
+    one doesn't short-circuit the rest. Caller can inspect each
+    SendResult.ok / .note to report per-channel status.
+    """
+    cfg = config if config is not None else load_config()
+    out: dict[str, SendResult] = {}
+    for name in channel_names:
+        out[name] = send(name, pdf_path, body, config=cfg)
+    return out
+
+
 def send(channel_name: str, pdf_path: Path, body: str,
          config: dict | None = None) -> SendResult:
     """Send via one channel by name.
