@@ -8,8 +8,18 @@ Reads recipient from ~/.claude/re_complete_config.json:
 If config is missing or empty, prints a helpful note and exits 0
 (non-fatal — the orchestrator falls back to "PDF saved, not sent").
 
+Refuses oversized files: iMessage's documented attachment limit is 100MB
+but in practice anything past ~5MB regularly fails or stalls. Exit 4 in
+that case so the orchestrator can fall back cleanly.
+
 Usage:
     python3 send_imessage.py <pdf_path> "<message body>"
+
+Exit codes:
+    0    sent successfully (or skipped because recipient not configured)
+    1    file not found / bad args
+    3    osascript / Messages.app failure
+    4    file too large for iMessage (>5MB)
 """
 import json
 import os
@@ -19,6 +29,7 @@ import sys
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".claude" / "re_complete_config.json"
+DEFAULT_MAX_BYTES = 5 * 1024 * 1024   # 5 MB iMessage safe ceiling
 
 
 def get_recipient() -> str | None:
@@ -69,9 +80,21 @@ def main():
     pdf_path = sys.argv[1]
     body = sys.argv[2] if len(sys.argv) > 2 else "Property analysis report"
 
-    if not Path(pdf_path).exists():
+    path = Path(pdf_path)
+    if not path.exists():
         print(f"ERROR: file not found: {pdf_path}", file=sys.stderr)
         sys.exit(1)
+
+    size = path.stat().st_size
+    max_bytes = int(os.environ.get("IMESSAGE_MAX_BYTES", DEFAULT_MAX_BYTES))
+    if size > max_bytes:
+        print(
+            f"TOO_LARGE: {path.name} is {size / 1024 / 1024:.2f} MB which "
+            f"exceeds the {max_bytes / 1024 / 1024:.0f} MB iMessage safe "
+            f"ceiling. PDF saved at {path}; iMessage send skipped.",
+            file=sys.stderr,
+        )
+        sys.exit(4)
 
     recipient = get_recipient()
     if not recipient:
