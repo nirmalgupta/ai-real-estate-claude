@@ -34,7 +34,10 @@ STATE_TAX_RATE = {
     "WV": 0.58, "WI": 1.85, "WY": 0.61,
 }
 
-PMMS_URL = "https://www.freddiemac.com/pmms/docs/historicalweeklydata.csv"
+# FRED's MORTGAGE30US series is the same Freddie Mac PMMS data Freddie
+# publishes weekly, mirrored as CSV by the St. Louis Fed (Freddie's own
+# CSV download was decommissioned in 2025 — they only ship XLSX now).
+PMMS_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
 PMMS_CACHE_TTL = 24 * 3600  # one day
 
 
