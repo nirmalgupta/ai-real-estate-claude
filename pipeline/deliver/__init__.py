@@ -120,6 +120,8 @@ def send(channel_name: str, pdf_path: Path, body: str,
 # Register channels on import. Each channel module guards heavy imports
 # behind its own send() so we don't pay the cost for channels the user
 # isn't using.
+from pipeline.deliver.email import EmailChannel  # noqa: E402
 from pipeline.deliver.imessage import ImessageChannel  # noqa: E402
 
 register(ImessageChannel())
+register(EmailChannel())
