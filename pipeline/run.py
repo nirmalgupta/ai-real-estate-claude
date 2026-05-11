@@ -17,6 +17,7 @@ from pipeline.fetch.bls_laus import BlsLausSource
 from pipeline.fetch.census_acs import CensusACSSource
 from pipeline.fetch.county import get_cad_source, supported_counties
 from pipeline.fetch.fema_nfhl import FemaNFHLSource
+from pipeline.fetch.fema_nfip import FemaNfipSource
 from pipeline.fetch.hud_fmr import HudFmrSource
 from pipeline.fetch.movoto import MovotoSource
 from pipeline.fetch.nces import NCESSource
@@ -62,6 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     print("[2/3] Fetching sources...")
     sources = [
         FemaNFHLSource(),
+        FemaNfipSource(),
         CensusACSSource(),
         HudFmrSource(),
         NCESSource(),
