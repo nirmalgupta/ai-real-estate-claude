@@ -133,6 +133,35 @@ def _parse_price_history(html: str) -> list[dict]:
     return events
 
 
+def _is_on_market(block: dict, history: list[dict]) -> bool:
+    """Decide whether a Redfin schema.org block represents an active listing.
+
+    Redfin reuses the `offers.price` field for off-market homes — but the
+    value is the Redfin Estimate (AVM), not a seller's ask. Surfacing it
+    as `list_price` misleads downstream consumers (cash-flow, break-even,
+    LLM-drafted snapshot). We need to tell the cases apart.
+
+    Signal priority:
+      1. `offers.availability` is authoritative when present.
+      2. Otherwise, fall back to the most recent priced event in the
+         sale history table — `Listed` means the home is on-market,
+         anything else (Sold, Listing Removed, Pending) means off-market.
+      3. If neither signal exists, treat as on-market (legacy behavior
+         for pages that lack both fields).
+    """
+    offers = block.get("offers") or {}
+    avail = offers.get("availability")
+    if avail:
+        avail_str = str(avail).lower()
+        if "instock" in avail_str:
+            return True
+        return False
+    if history:
+        latest = history[0]
+        return latest.get("event", "").lower() == "listed"
+    return True
+
+
 def _implied_list_appreciation(history: list[dict]) -> dict | None:
     """If we have ≥2 list events with prices, compute implied annualized
     appreciation from prior list → most recent list. Useful sanity check
@@ -229,7 +258,16 @@ class RedfinSource(Source):
         main = block.get("mainEntity") or {}
         floor = (main.get("floorSize") or {}) if isinstance(main, dict) else {}
 
-        add("list_price", _to_int(offers.get("price")))
+        history = _parse_price_history(html)
+        on_market = _is_on_market(block, history)
+        price = _to_int(offers.get("price"))
+        if on_market:
+            add("list_price", price)
+        else:
+            add("redfin_estimate", price,
+                note="Redfin AVM for off-market home (offers.price on a "
+                     "non-listed property is the Redfin Estimate, not a "
+                     "seller's ask)")
         add("listing_url", block.get("url"))
         add("listing_description", block.get("description"))
         add("listing_date_posted", block.get("datePosted"))
@@ -247,7 +285,6 @@ class RedfinSource(Source):
             add("photo_count", len(images))
 
         # Sale history table — clean HTML, scrapable regardless of state.
-        history = _parse_price_history(html)
         if history:
             add("redfin_price_history", history,
                 note=f"{len(history)} historical event(s); '*' price rows "
