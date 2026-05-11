@@ -34,14 +34,19 @@ synthesis).
 ```
 python3 -m pipeline.search "<city / zip / lat,lon>" [--radius MILES] \\
     [--min-price N] [--max-price N] [--min-beds N] [--min-baths X] \\
-    [--max-results N]
+    [--max-results N] [--no-rent] [--sort {dollar_per_sqft,grm,cap,price}]
 ```
 
 Output is a key:value block per listing with: address, redfin URL, price,
-beds, baths, sqft, lot, year, HOA, DOM, $/sqft, property type, MLS#.
-Sorted lowest-$/sqft first.
+beds, baths, sqft, lot, year, HOA, DOM, $/sqft, **est. rent**, **GRM**,
+**rough cap rate**, property type, MLS#. Sorted lowest-$/sqft first by
+default; use `--sort grm` or `--sort cap` to surface rental-strongest
+candidates first.
 
 Behavior:
+- Rent / GRM / cap-rate are computed by default. Uses HUD FMR when
+  `HUD_API_KEY` is set, falls back to ACS tract median rent otherwise
+  (no key required). Pass `--no-rent` to skip and save one HTTP.
 - Hits Redfin's `stingray/api/gis-csv` endpoint. Free, no key. Currently
   the only listing-search source that returns 200 to plain HTTP — Zillow,
   Realtor.com, HAR all anti-bot the python-httpx client.

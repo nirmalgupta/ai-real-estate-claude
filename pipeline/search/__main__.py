@@ -23,27 +23,35 @@ from pipeline.search.redfin import (
     STATUS_ACTIVE,
     search_redfin,
 )
+from pipeline.search.rent import (
+    RentBenchmark,
+    compute_rent_metrics,
+    estimate_rent,
+    fetch_rent_benchmark,
+)
 
 
-def _resolve_center(query: str) -> tuple[float, float, str]:
-    """Turn a free-form query into (lat, lon, label).
+def _resolve_center(query: str):
+    """Turn a free-form query into (lat, lon, label, address_or_None).
 
-    Accepts:
-      - 'lat,lon'   raw decimal pair
-      - any string the existing geocoder can resolve (city, zip, full address)
+    Returning the Address (when geocoded) gives the caller access to
+    state/county/tract FIPS for downstream enrichment (e.g. rent comps).
+    Raw lat,lon queries skip geocoding and return None for address.
     """
     m = re.fullmatch(r"\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*", query)
     if m:
-        return float(m.group(1)), float(m.group(2)), f"{m.group(1)},{m.group(2)}"
+        return float(m.group(1)), float(m.group(2)), f"{m.group(1)},{m.group(2)}", None
     addr = geocode(query)
-    return addr.lat, addr.lon, addr.matched
+    return addr.lat, addr.lon, addr.matched, addr
 
 
 def _format_money(n: int | None) -> str:
     return f"${n:,}" if n is not None else "-"
 
 
-def _format_listing(idx: int, L: Listing) -> str:
+def _format_listing(idx: int, L: Listing, rent: int | None,
+                    grm: float | None, cap: float | None,
+                    rent_label: str) -> str:
     lines = [
         f"[{idx}] {L.display_addr}",
         f"    url:    {L.url or '-'}",
@@ -56,16 +64,42 @@ def _format_listing(idx: int, L: Listing) -> str:
         f"    hoa:    " + (f"${L.hoa_monthly}/mo" if L.hoa_monthly else "-"),
         f"    dom:    {L.days_on_market} days" if L.days_on_market is not None else "    dom:    -",
         f"    $/sqft: {_format_money(L.price_per_sqft)}",
+        f"    rent:   "
+        + (f"${rent}/mo ({rent_label})" if rent else "-"),
+        f"    grm:    " + (f"{grm}" if grm is not None else "-"),
+        f"    cap:    "
+        + (f"{cap * 100:.2f}% (rough, 45% expense ratio)"
+           if cap is not None else "-"),
         f"    type:   {L.property_type or '-'}",
         f"    mls:    {L.mls_number or '-'}",
     ]
     return "\n".join(lines)
 
 
-def _rank_key(L: Listing) -> tuple[int, int]:
-    """Sort: lowest $/sqft first, then highest sqft. Listings missing
-    $/sqft sink to the bottom."""
+def _rank_key_dollar_per_sqft(L: Listing, _rent, _grm, _cap):
     return (L.price_per_sqft or 10**9, -(L.sqft or 0))
+
+
+def _rank_key_grm(L: Listing, _rent, grm, _cap):
+    # Lowest GRM is best for rentals; None sinks to the bottom
+    return (grm if grm is not None else 10**9, L.price or 10**9)
+
+
+def _rank_key_cap(L: Listing, _rent, _grm, cap):
+    # Highest cap rate is best; None sinks
+    return (-(cap or -1), L.price or 10**9)
+
+
+def _rank_key_price(L: Listing, *_):
+    return (L.price or 10**9,)
+
+
+_RANK_KEYS = {
+    "dollar_per_sqft": _rank_key_dollar_per_sqft,
+    "grm": _rank_key_grm,
+    "cap": _rank_key_cap,
+    "price": _rank_key_price,
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -86,14 +120,20 @@ def main(argv: list[str] | None = None) -> int:
                    help="Comma-separated Redfin uipt codes (1=house, 2=condo, "
                         "3=townhouse, 4=multi-family, 5=land, 6=other, "
                         "7=mobile, 8=co-op). Default: 1,2,3,4.")
+    p.add_argument("--no-rent", action="store_true",
+                   help="Skip rent / GRM / cap-rate enrichment "
+                        "(default: enrichment on; uses HUD FMR or ACS).")
+    p.add_argument("--sort", choices=list(_RANK_KEYS.keys()),
+                   default="dollar_per_sqft",
+                   help="Sort order (default: dollar_per_sqft).")
     args = p.parse_args(argv)
 
-    print(f"[1/2] Resolving search center: {args.query}")
-    lat, lon, label = _resolve_center(args.query)
+    print(f"[1/3] Resolving search center: {args.query}")
+    lat, lon, label, center_addr = _resolve_center(args.query)
     print(f"      center: {lat:.6f}, {lon:.6f} ({label})")
     print(f"      radius: {args.radius} mi")
 
-    print(f"[2/2] Querying Redfin gis-csv...")
+    print(f"[2/3] Querying Redfin gis-csv...")
     listings, url = search_redfin(
         center_lat=lat,
         center_lon=lon,
@@ -113,9 +153,40 @@ def main(argv: list[str] | None = None) -> int:
         print("No listings matched. Try widening the radius or relaxing filters.")
         return 0
 
-    listings.sort(key=_rank_key)
-    for i, L in enumerate(listings, start=1):
-        print(_format_listing(i, L))
+    # Rent enrichment is on by default per the project's open-source
+    # philosophy (free path works without env vars or flags).
+    bench: RentBenchmark | None = None
+    if not args.no_rent:
+        print(f"[3/3] Fetching rent benchmark for search center...")
+        if center_addr is not None:
+            bench = fetch_rent_benchmark(
+                state_fips=center_addr.state_fips,
+                county_fips=center_addr.county_fips,
+                tract_fips=center_addr.tract_fips,
+            )
+            print(f"      rent: {bench.note}")
+        else:
+            print("      skipped — raw lat,lon queries can't resolve county FIPS")
+    print()
+
+    # Pre-compute enrichment per listing so the sort key can use it
+    enriched: list[tuple[Listing, int | None, float | None,
+                         float | None, str]] = []
+    for L in listings:
+        rent: int | None = None
+        rent_label = "-"
+        if bench is not None and bench.source != "unavailable":
+            est = estimate_rent(L.beds, L.sqft, bench)
+            if est:
+                rent, rent_label = est
+        grm, cap = compute_rent_metrics(L.price, rent)
+        enriched.append((L, rent, grm, cap, rent_label))
+
+    sort_key = _RANK_KEYS[args.sort]
+    enriched.sort(key=lambda t: sort_key(t[0], t[1], t[2], t[3]))
+
+    for i, (L, rent, grm, cap, rent_label) in enumerate(enriched, start=1):
+        print(_format_listing(i, L, rent, grm, cap, rent_label))
         print()
     return 0
 
