@@ -85,6 +85,7 @@ Sources the pipeline hits per run:
 |---|---|
 | Census Geocoder + Nominatim/FCC | lat/lon + state/county/tract FIPS |
 | FEMA NFHL | official flood zone (X / AE / VE / etc) |
+| OpenFEMA NFIP claims | 10-yr count / total / max / median of paid flood-insurance claims in property's ZIP |
 | Census ACS 5-year | tract demographics, median income/home value/rent, owner-occupancy %, education % |
 | HUD FMR | gov fair-market rent (needs `HUD_API_KEY`) |
 | NCES public schools | nearest 3 elementary / middle / high schools, with locale code, distance, NCES IDs |
