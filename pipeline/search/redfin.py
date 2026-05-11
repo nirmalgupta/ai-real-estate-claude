@@ -68,6 +68,7 @@ class Listing:
     url: str
     lat: float | None
     lon: float | None
+    sold_date: str | None = None    # populated when status=SOLD
 
     @property
     def display_addr(self) -> str:
@@ -149,6 +150,7 @@ def _parse_csv(body: str) -> list[Listing]:
             ),
             lat=_row_float(row, "LATITUDE"),
             lon=_row_float(row, "LONGITUDE"),
+            sold_date=(row.get("SOLD DATE") or "").strip() or None,
         ))
     return listings
 
