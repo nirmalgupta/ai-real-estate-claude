@@ -39,8 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--movoto-url",
         default=None,
-        help="Optional Movoto listing URL to use directly. Bypasses search "
-             "(which is unreliable). Find via Google `site:movoto.com \"<address>\"`.",
+        help="Optional Movoto listing URL — only useful when Redfin doesn't "
+             "carry the listing. No auto-discovery; supply the URL yourself.",
     )
     p.add_argument(
         "--redfin-url",
