@@ -15,6 +15,9 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from pipeline.analyze.defaults import (
+    default_insurance, default_mortgage_rate, default_rent, default_tax,
+)
 from pipeline.analyze.finance import (
     CashFlowInputs, break_even_purchase_price, buy_hold_irr, compute_cash_flow,
 )
@@ -38,7 +41,9 @@ def _resolve_wiki_path(arg: str) -> Path:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Compute financial numbers from a wiki page.")
     p.add_argument("slug", help="Address slug or path to wiki .md file")
-    p.add_argument("--rate", type=float, default=0.065, help="30-yr fixed mortgage rate (decimal)")
+    p.add_argument("--rate", type=float, default=None,
+                   help="30-yr fixed mortgage rate (decimal). Defaults to "
+                        "Freddie Mac PMMS latest weekly rate.")
     p.add_argument("--down-pct", type=float, default=0.20)
     p.add_argument("--rent", type=float, default=None,
                    help="Estimated monthly rent. Defaults to ACS median * 3 if listing is luxury "
@@ -71,26 +76,33 @@ def main(argv: list[str] | None = None) -> int:
               "Was Redfin run?", file=sys.stderr)
         return 1
 
-    # Defaults derived from facts
-    tax = args.tax if args.tax is not None else list_price * 0.02
-    insurance = args.insurance if args.insurance is not None else list_price * 0.004
+    state = fm.get("state_abbr") or fm.get("state")
+    beds = facts.get("beds")
 
-    # Rent estimate: prefer explicit --rent. If absent, use ACS tract median
-    # gross rent as a floor, scaled up for luxury homes (sqft > tract avg).
-    rent = args.rent
-    if rent is None:
-        acs_rent = facts.get("median_gross_rent", 0)
-        sqft = facts.get("sqft", 0)
-        rent = acs_rent
-        if sqft and sqft > 3000:
-            # Crude proxy: luxury homes rent at ~1.5–3x tract median
-            rent = acs_rent * 2.5
-    rent = float(rent or 0)
+    if args.tax is not None:
+        tax, tax_source = float(args.tax), "explicit --tax"
+    else:
+        tax, tax_source = default_tax(facts, float(list_price), state)
+
+    if args.insurance is not None:
+        insurance, insurance_source = float(args.insurance), "explicit --insurance"
+    else:
+        insurance, insurance_source = default_insurance(facts, float(list_price))
+
+    if args.rent is not None:
+        rent, rent_source = float(args.rent), "explicit --rent"
+    else:
+        rent, rent_source = default_rent(facts, beds=beds)
+
+    if args.rate is not None:
+        rate, rate_source = float(args.rate), "explicit --rate"
+    else:
+        rate, rate_source = default_mortgage_rate()
 
     inputs = CashFlowInputs(
         list_price=float(list_price),
         down_pct=args.down_pct,
-        mortgage_rate=args.rate,
+        mortgage_rate=rate,
         annual_property_tax=tax,
         annual_insurance=insurance,
         monthly_hoa=args.hoa_monthly,
@@ -117,13 +129,16 @@ def main(argv: list[str] | None = None) -> int:
             "list_price": list_price,
             "list_price_source": price_source,
             "down_pct": args.down_pct,
-            "mortgage_rate": args.rate,
+            "mortgage_rate": rate,
+            "mortgage_rate_source": rate_source,
             "annual_property_tax": tax,
+            "annual_property_tax_source": tax_source,
             "annual_insurance": insurance,
+            "annual_insurance_source": insurance_source,
             "monthly_hoa": args.hoa_monthly,
             "monthly_pool": args.pool_monthly,
             "estimated_monthly_rent": rent,
-            "rent_source": "explicit --rent" if args.rent is not None else "ACS tract median (scaled)",
+            "rent_source": rent_source,
         },
         "cash_flow": asdict(cf),
         "buy_hold": bh,
@@ -135,7 +150,10 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Wrote {out_path}")
     print(f"  list price:           ${list_price:>12,.0f}  ({price_source})")
-    print(f"  est. monthly rent:    ${rent:>12,.0f}  ({out['inputs']['rent_source']})")
+    print(f"  mortgage rate:         {rate * 100:>11,.2f}%  ({rate_source})")
+    print(f"  annual property tax:  ${tax:>12,.0f}  ({tax_source})")
+    print(f"  annual insurance:     ${insurance:>12,.0f}  ({insurance_source})")
+    print(f"  est. monthly rent:    ${rent:>12,.0f}  ({rent_source})")
     print(f"  monthly cash flow:    ${cf.monthly_cash_flow_with_pm:>12,.0f}  (with PM, mid case)")
     print(f"  cap rate:              {cf.cap_rate * 100:>11,.2f}%")
     print(f"  cash-on-cash:          {cf.cash_on_cash * 100:>11,.2f}%")
