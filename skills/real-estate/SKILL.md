@@ -199,14 +199,31 @@ writes `reports/<slug>/PROPERTY-ANALYSIS.md`.
 
 ## Phase F — PDF + delivery (optional)
 
+Generate the PDF:
 ```
 python3 ~/.claude/scripts/generate_pdf_report.py reports/<slug>/PROPERTY-ANALYSIS.md
 ```
 
-If the user has set up an iMessage handle:
+Then check which delivery channels the user configured at install time:
 ```
-python3 ~/.claude/scripts/send_imessage.py <pdf-path> "<one-line summary>"
+python3 -m pipeline.deliver --list
 ```
+
+If at least one channel is enabled (iMessage, email, Telegram, Slack),
+ask the user which to send to — *or* default to "all enabled" if they
+don't want to be asked:
+```
+python3 -m pipeline.deliver --pdf <pdf-path> --body "<one-line summary>"
+    [--to imessage,email,telegram,slack]
+```
+
+The driver returns per-channel results (ok / FAIL / skip). PDFs > 5 MB
+are refused by iMessage; the orchestrator continues to other channels
+without failing the whole step.
+
+If no channels are configured, just tell the user where the PDF was saved
+— don't prompt them to set up a channel (per the project's open-source
+philosophy: configure at install time, not runtime).
 
 ---
 
