@@ -90,6 +90,7 @@ Sources the pipeline hits per run:
 | NCES public schools | nearest 3 elementary / middle / high schools, with locale code, distance, NCES IDs |
 | NOAA SPC storm CSVs | 10-yr counts of EF1+ tornadoes, hail ≥1.5", convective wind ≥58mph within 10mi |
 | NOAA NCEI Climate Normals (1991-2020) | annual mean temp, annual precip, days >90°F, days <32°F at nearest station |
+| BLS LAUS | county unemployment rate (latest month) + YoY pct-pt change |
 | USGS NSHM | seismic PGA at 2%-in-50yr (ASCE 7 design-basis level) |
 | OSM Overpass amenities | nearest 5 supermarkets, convenience stores, pharmacies, restaurants (with brand + distance). Companion `*_nearest_miles` facts for quick scoring. |
 | County CAD adapter | tax-assessed value, market value, owner, year built, legal description, lot size, sale price + date *(disclosure states only)* — **runs only if a CAD adapter is registered for the county** |
