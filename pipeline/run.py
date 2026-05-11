@@ -25,6 +25,7 @@ from pipeline.fetch.noaa_normals import NoaaNormalsSource
 from pipeline.fetch.noaa_spc import NoaaSpcSource
 from pipeline.fetch.osm_amenities import OsmAmenitiesSource
 from pipeline.fetch.redfin import RedfinSource
+from pipeline.fetch.realestate_api import RealEstateApiSource
 from pipeline.fetch.redfin_comps import RedfinCompsSource
 from pipeline.fetch.usgs_eq import UsgsEqSource
 from pipeline.wiki.builder import write_page
@@ -91,6 +92,14 @@ def main(argv: list[str] | None = None) -> int:
                   f"registered: {', '.join(registered)})")
         else:
             print("      (no CAD adapters registered yet — county records skipped)")
+
+        # Paid RealEstateAPI fallback runs only when (a) no bespoke
+        # CAD covers this county, AND (b) the user opted in at install
+        # time. Quiet silent enhancement per the open-source philosophy.
+        from pipeline.common.config import api_key as _api_key
+        if _api_key("realestate", env_var="REALESTATE_API_KEY"):
+            sources.append(RealEstateApiSource())
+            print("      (RealEstateAPI paid fallback enabled for this county)")
 
     results = []
     for s in sources:
