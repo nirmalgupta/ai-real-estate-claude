@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from pipeline.common.address import geocode
+from pipeline.fetch.bea_regional import BeaRegionalSource
 from pipeline.fetch.bls_laus import BlsLausSource
 from pipeline.fetch.census_acs import CensusACSSource
 from pipeline.fetch.county import get_cad_source, supported_counties
@@ -69,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         UsgsEqSource(),
         OsmAmenitiesSource(),
         BlsLausSource(),
+        BeaRegionalSource(),
         MovotoSource(listing_url=args.movoto_url),
         RedfinSource(listing_url=args.redfin_url),
     ]
