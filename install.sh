@@ -66,34 +66,20 @@ if command -v python3 >/dev/null 2>&1; then
     fi
 fi
 
-# --- Optional: HUD FMR API key ---
+# --- Unified setup: API keys + delivery channels ---
+# install_config.py walks every optional service one-by-one, lets you
+# skip any of them, and silently preserves what you've already configured
+# on subsequent runs. Per the project's open-source philosophy: configure
+# once here, never prompted at runtime.
 echo ""
-echo "Optional: HUD Fair Market Rent API key (for rent benchmarks)"
-echo "  Get a free key at https://www.huduser.gov/hudapi/"
-if [ -z "${HUD_API_KEY:-}" ]; then
-    echo "  Then add to your shell profile:"
-    echo "    export HUD_API_KEY=<your key>"
+echo "Setting up optional services (re-run install.sh to add more later)..."
+if command -v python3 >/dev/null 2>&1; then
+    python3 "${SCRIPT_DIR}/scripts/install_config.py" || {
+        echo "  ! install_config.py failed; you can re-run it later:"
+        echo "      python3 ${SCRIPT_DIR}/scripts/install_config.py"
+    }
 else
-    echo "  HUD_API_KEY is already set in your environment."
-fi
-
-# --- Optional: iMessage recipient config ---
-CONFIG_FILE="${CLAUDE_DIR}/re_complete_config.json"
-echo ""
-echo "Optional: iMessage delivery (for Phase F send-to-phone)"
-if [ -f "${CONFIG_FILE}" ] && grep -q '"imessage_to"' "${CONFIG_FILE}" 2>/dev/null; then
-    handle="$(python3 -c "import json; print(json.load(open('${CONFIG_FILE}'))['imessage_to'])" 2>/dev/null || echo "")"
-    echo "  Already configured: ${handle}"
-else
-    echo "  Phone number (e.g. +15551234567) or Apple ID email, or leave blank to skip:"
-    read -r -p "  iMessage handle: " IMSG_HANDLE
-    if [ -n "${IMSG_HANDLE}" ]; then
-        printf '{"imessage_to": "%s"}\n' "${IMSG_HANDLE}" > "${CONFIG_FILE}"
-        chmod 600 "${CONFIG_FILE}"
-        echo "  + saved to ${CONFIG_FILE}"
-    else
-        echo "  - skipped"
-    fi
+    echo "  python3 not found — skipping optional-service setup."
 fi
 
 echo ""

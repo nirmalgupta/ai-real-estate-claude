@@ -28,10 +28,11 @@ full pipeline uses fact-derived expenses instead.
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 import httpx
+
+from pipeline.common.config import api_key
 
 EXPENSE_RATIO = 0.45   # standard SFR landlord rule of thumb
 
@@ -65,11 +66,11 @@ def fetch_rent_benchmark(state_fips: str, county_fips: str,
     Prefers HUD FMR when HUD_API_KEY is set; falls back to ACS tract
     median; surfaces 'unavailable' with a clear note if neither works.
     """
-    api_key = os.environ.get("HUD_API_KEY")
+    key = api_key("hud", env_var="HUD_API_KEY")
     full_county = f"{state_fips}{county_fips}"
 
-    if api_key:
-        fmr = _fetch_hud_fmr(full_county, api_key)
+    if key:
+        fmr = _fetch_hud_fmr(full_county, key)
         if fmr:
             return RentBenchmark(
                 source="hud_fmr",
@@ -88,8 +89,8 @@ def fetch_rent_benchmark(state_fips: str, county_fips: str,
                 acs_median=acs,
                 note=f"ACS 5-yr median gross rent for tract "
                      f"{state_fips}{county_fips}{tract_fips}"
-                     + (" (set HUD_API_KEY for better fidelity)"
-                        if not api_key else ""),
+                     + (" (configure HUD API key for better fidelity)"
+                        if not key else ""),
             )
     return RentBenchmark(
         source="unavailable",
@@ -100,13 +101,13 @@ def fetch_rent_benchmark(state_fips: str, county_fips: str,
     )
 
 
-def _fetch_hud_fmr(county_fips: str, api_key: str) -> dict[int, int] | None:
+def _fetch_hud_fmr(county_fips: str, hud_key: str) -> dict[int, int] | None:
     """Return {0: studio, 1: 1br, ... 4: 4br} or None on failure."""
     from datetime import datetime
 
     url = f"https://www.huduser.gov/hudapi/public/fmr/data/{county_fips}"
     params = {"year": str(datetime.now().year - 1)}
-    headers = {"Authorization": f"Bearer {api_key}"}
+    headers = {"Authorization": f"Bearer {hud_key}"}
     try:
         r = httpx.get(url, params=params, headers=headers, timeout=30.0)
         r.raise_for_status()
