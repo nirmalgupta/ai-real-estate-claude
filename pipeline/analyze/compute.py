@@ -62,8 +62,13 @@ def main(argv: list[str] | None = None) -> int:
     fm, facts = load_wiki_facts(wiki_path)
 
     list_price = facts.get("list_price")
+    price_source = "list_price"
     if list_price is None:
-        print("ERROR: no list_price in wiki facts. Was Movoto run?", file=sys.stderr)
+        list_price = facts.get("redfin_estimate")
+        price_source = "redfin_estimate (off-market home — Redfin AVM)"
+    if list_price is None:
+        print("ERROR: no list_price or redfin_estimate in wiki facts. "
+              "Was Redfin run?", file=sys.stderr)
         return 1
 
     # Defaults derived from facts
@@ -110,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         "slug": fm["slug"],
         "inputs": {
             "list_price": list_price,
+            "list_price_source": price_source,
             "down_pct": args.down_pct,
             "mortgage_rate": args.rate,
             "annual_property_tax": tax,
@@ -128,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     out_path.write_text(json.dumps(out, indent=2))
 
     print(f"Wrote {out_path}")
-    print(f"  list price:           ${list_price:>12,.0f}")
+    print(f"  list price:           ${list_price:>12,.0f}  ({price_source})")
     print(f"  est. monthly rent:    ${rent:>12,.0f}  ({out['inputs']['rent_source']})")
     print(f"  monthly cash flow:    ${cf.monthly_cash_flow_with_pm:>12,.0f}  (with PM, mid case)")
     print(f"  cap rate:              {cf.cap_rate * 100:>11,.2f}%")

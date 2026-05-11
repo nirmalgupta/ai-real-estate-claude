@@ -5,6 +5,7 @@ import unittest
 from pipeline.fetch.redfin import (
     _find_listing_block,
     _implied_list_appreciation,
+    _is_on_market,
     _parse_price_history,
     _to_float,
     _to_int,
@@ -160,6 +161,39 @@ class TestImpliedAppreciation(unittest.TestCase):
              "price_per_sqft": None, "non_disclosure": True},
         ]
         self.assertIsNone(_implied_list_appreciation(history))
+
+
+class TestIsOnMarket(unittest.TestCase):
+    def test_in_stock_availability_means_on_market(self):
+        block = {"offers": {"availability": "https://schema.org/InStock"}}
+        self.assertTrue(_is_on_market(block, []))
+
+    def test_sold_out_availability_means_off_market(self):
+        block = {"offers": {"availability": "https://schema.org/SoldOut"}}
+        self.assertFalse(_is_on_market(block, []))
+
+    def test_history_listed_most_recent_means_on_market(self):
+        block = {"offers": {}}
+        history = [
+            {"date": "Apr 30, 2026", "event": "Listed", "price": 1049000,
+             "price_per_sqft": 262, "non_disclosure": False},
+        ]
+        self.assertTrue(_is_on_market(block, history))
+
+    def test_history_sold_most_recent_means_off_market(self):
+        block = {"offers": {}}
+        history = [
+            {"date": "Apr 26, 2022", "event": "Sold", "price": None,
+             "price_per_sqft": None, "non_disclosure": True},
+            {"date": "Mar 17, 2022", "event": "Listed", "price": 999500,
+             "price_per_sqft": 250, "non_disclosure": False},
+        ]
+        self.assertFalse(_is_on_market(block, history))
+
+    def test_no_signals_defaults_on_market(self):
+        # Preserves legacy behavior for the SAMPLE_BLOCK in this file,
+        # which has no availability and no embedded history.
+        self.assertTrue(_is_on_market({}, []))
 
 
 if __name__ == "__main__":
