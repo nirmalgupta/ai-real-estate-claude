@@ -224,6 +224,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("input", help="Path to PROPERTY-ANALYSIS.md")
     p.add_argument("-o", "--output", help="Output PDF path")
+    p.add_argument(
+        "--max-size-mb", type=float, default=5.0,
+        help="Warn if output PDF exceeds this size (default 5 MB, the "
+             "iMessage safe ceiling). Set 0 to disable the check.",
+    )
     args = p.parse_args()
 
     in_path = Path(args.input)
@@ -241,7 +246,18 @@ def main():
         out = in_path.parent / f"PROPERTY-REPORT-{slug}-{datetime.now().strftime('%Y%m%d')}.pdf"
 
     build_pdf(in_path, out)
-    print(f"Wrote {out}")
+    size_mb = out.stat().st_size / 1024 / 1024
+    print(f"Wrote {out} ({size_mb:.2f} MB)")
+
+    if args.max_size_mb > 0 and size_mb > args.max_size_mb:
+        print(
+            f"WARNING: PDF is {size_mb:.2f} MB, larger than the "
+            f"{args.max_size_mb:.0f} MB iMessage safe ceiling. "
+            "When listing photos / map snapshots are added, wire image "
+            "downsampling here (Pillow + reportlab) before send_imessage "
+            "refuses the file.",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":
