@@ -28,7 +28,7 @@ Legend:
 | **NOAA Climate Normals** | 30-year temp/precip averages by station; useful for climate context. | None | 🔧 |
 | **NOAA SPC** (Storm Prediction Center) | Tornado/hail/wind reports historical archive. | None | ✅ `pipeline.fetch.noaa_spc` |
 | **EPA EJScreen** | Environmental justice screening: pollution exposure by tract. | None | 🔧 |
-| **EPA Superfund** (CERCLIS) | Active and historical Superfund sites by location. | None | 🔧 |
+| **EPA Superfund** (CERCLIS) | Active and historical Superfund sites by location (county-scoped via EnviroFacts FRS / SEMS). | None | ✅ `pipeline.fetch.epa_superfund` |
 | **BLS LAUS** (Local Area Unemployment Statistics) | Unemployment rate by county. | None | 🔧 |
 | **BEA Regional** | Per-capita personal income by MSA/county. | Free key | 🔧 |
 | **DOT AADT** (Annual Average Daily Traffic) | Traffic counts by road segment — useful for "is this on a busy road" assessment. | None | ✅ `pipeline.fetch.dot_aadt` |
