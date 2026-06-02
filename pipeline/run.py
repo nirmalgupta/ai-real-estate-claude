@@ -16,6 +16,7 @@ from pipeline.fetch.bea_regional import BeaRegionalSource
 from pipeline.fetch.bls_laus import BlsLausSource
 from pipeline.fetch.census_acs import CensusACSSource
 from pipeline.fetch.county import get_cad_source, supported_counties
+from pipeline.fetch.dot_aadt import DotAadtSource
 from pipeline.fetch.fema_nfhl import FemaNFHLSource
 from pipeline.fetch.fema_nfip import FemaNfipSource
 from pipeline.fetch.hud_fmr import HudFmrSource
@@ -75,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         OsmAmenitiesSource(),
         BlsLausSource(),
         BeaRegionalSource(),
+        DotAadtSource(),
         MovotoSource(listing_url=args.movoto_url),
         RedfinSource(listing_url=args.redfin_url),
     ]
