@@ -46,6 +46,13 @@ class TestRaleighRegistry(unittest.TestCase):
             self.assertTrue(issubclass(cls, NcParcelCAD))
             self.assertTrue(cls.sale_price_disclosed)
 
+    def test_durham_chatham_endpoints_wired(self):
+        # Both endpoints are now identified (NC OneMap statewide for
+        # Durham; Chatham's CamaParcels for Chatham).
+        for cls in (DurhamNcCAD, ChathamNcCAD):
+            self.assertTrue(cls.service_url.startswith("https://"))
+            self.assertIn("tax_assessed_value", cls.attr_map)
+
 
 if __name__ == "__main__":
     unittest.main()
