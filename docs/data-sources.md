@@ -21,13 +21,13 @@ Legend:
 | **Census ACS** (American Community Survey 5-year) | Tract-level demographics: median household income, owner-occupancy %, median home value, median gross rent, education, age. The gold standard for "what kind of neighborhood is this." | Optional free key (raises limit from 500 → 50K calls/day) | ✅ `pipeline.fetch.census_acs` |
 | **FEMA NFHL** (National Flood Hazard Layer) | Official FEMA flood zone (X / AE / AH / VE etc) by lat/lon. Authoritative — this IS the source of truth for flood designation. | None | ✅ `pipeline.fetch.fema_nfhl` |
 | **HUD Fair Market Rent** | Government's published rent benchmark by metro/county/bedroom count. Used by Section 8. Useful for rural/secondary markets where Zillow Rent Zestimate has thin data, and for sanity-checking listing aggregator rent estimates. | Free API key (`HUD_API_KEY` env var) | ✅ `pipeline.fetch.hud_fmr` |
-| **HUD CHAS** (Comprehensive Housing Affordability Strategy) | Housing cost burden, affordability by income tier. | None | 🔧 |
+| **HUD CHAS** (Comprehensive Housing Affordability Strategy) | Housing cost burden, affordability by income tier. | Free `HUD_API_KEY` (Bearer) | 🔧 deferred (#49) — the API requires the free HUD token and its cost-burden measure field names aren't publicly documented; implementing correctly needs a real keyed response to map fields. Heavy overlap with ACS (already wired). |
 | **FEMA NFIP claims** | Historical flood insurance claims by ZIP. Better proxy for "does this area actually flood" than the static flood zone. | None | 🔧 |
 | **NCES public schools** (Common Core of Data) | Every public school: enrollment, demographics, locale code. Note: ratings (GreatSchools/Niche) are paid; raw stats are free. | None | ✅ `pipeline.fetch.nces` |
 | **USGS Earthquake Hazard** | Probabilistic seismic risk by lat/lon. National Seismic Hazard Map. | None | ✅ `pipeline.fetch.usgs_eq` |
 | **NOAA Climate Normals** | 30-year temp/precip averages by station; useful for climate context. | None | 🔧 |
 | **NOAA SPC** (Storm Prediction Center) | Tornado/hail/wind reports historical archive. | None | ✅ `pipeline.fetch.noaa_spc` |
-| **EPA EJScreen** | Environmental justice screening: pollution exposure by tract. | None | 🔧 |
+| **EPA EJScreen** | Environmental justice screening: pollution exposure by tract. | None | 🚫 decommissioned (#45) — EPA took EJScreen and its public REST broker (`ejscreen.epa.gov/mapper/ejscreenRESTbroker`) offline in 2025; the endpoint no longer resolves. No stable official replacement REST. (A community mirror exists via the Public Environmental Data Partners, but it's not a dependable API.) |
 | **EPA Superfund** (CERCLIS) | Active and historical Superfund sites by location (county-scoped via EnviroFacts FRS / SEMS). | None | ✅ `pipeline.fetch.epa_superfund` |
 | **BLS LAUS** (Local Area Unemployment Statistics) | Unemployment rate by county. | None | 🔧 |
 | **BEA Regional** | Per-capita personal income by MSA/county. | Free key | 🔧 |
