@@ -31,7 +31,7 @@ Legend:
 | **EPA Superfund** (CERCLIS) | Active and historical Superfund sites by location. | None | 🔧 |
 | **BLS LAUS** (Local Area Unemployment Statistics) | Unemployment rate by county. | None | 🔧 |
 | **BEA Regional** | Per-capita personal income by MSA/county. | Free key | 🔧 |
-| **DOT AADT** (Annual Average Daily Traffic) | Traffic counts by road segment — useful for "is this on a busy road" assessment. | None | 🔧 |
+| **DOT AADT** (Annual Average Daily Traffic) | Traffic counts by road segment — useful for "is this on a busy road" assessment. | None | ✅ `pipeline.fetch.dot_aadt` |
 | **OpenStreetMap Overpass** | Nearest supermarkets, convenience stores, pharmacies, restaurants by lat/lon. | None | ✅ `pipeline.fetch.osm_amenities` |
 
 ---
