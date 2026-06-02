@@ -76,12 +76,12 @@ Implemented adapters (✅ = live-smoke verified, ⚠️ = registered but service
 |---|---|---|---|
 | Denton, TX (48121) | `pipeline.fetch.county.tx_denton` | ✅ | No (TX non-disclosure) |
 | Dallas, TX (48113) | `pipeline.fetch.county.tx_dallas` | ✅ | No (parcel + owner only — DCAD does not publish values via REST) |
-| Tarrant, TX (48439) | `pipeline.fetch.county.tx_tarrant` | ⚠️ | No |
+| Tarrant, TX (48439) | `pipeline.fetch.county.tx_tarrant` | ✅ | No (CFW-hosted TAD view — full roll incl. year built + living area) |
 | Collin, TX (48085) | `pipeline.fetch.county.tx_collin` | ✅ | No |
 | Travis, TX (48453) | `pipeline.fetch.county.tx_travis` | ✅ | No (TCAD public layer — partial, land value only) |
 | Williamson, TX (48491) | `pipeline.fetch.county.tx_williamson` | ✅ | No |
 | Hays, TX (48209) | `pipeline.fetch.county.tx_hays` | ✅ | No |
-| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | ⚠️ | No |
+| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | ✅ | No (HCAD gis.hctx.net — value/owner/legal/lot; no year built) |
 | Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | ✅ | No |
 | Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | ✅ | No (parcel + owner + year built only — values not in public REST) |
 | Brazoria, TX (48039) | `pipeline.fetch.county.tx_brazoria` | ✅ | No |
@@ -90,17 +90,17 @@ Implemented adapters (✅ = live-smoke verified, ⚠️ = registered but service
 | Broward, FL (12011) | `pipeline.fetch.county.fl_broward` | ✅ | Yes |
 | Palm Beach, FL (12099) | `pipeline.fetch.county.fl_palmbeach` | ✅ | Yes |
 | Wake, NC (37183) | `pipeline.fetch.county.nc_wake` | ✅ | Yes (NC disclosure) |
-| Durham, NC (37063) | `pipeline.fetch.county.nc_durham` | ⚠️ | Yes |
+| Durham, NC (37063) | `pipeline.fetch.county.nc_durham` | ✅ | Yes (NC OneMap statewide — value/owner/lot only; no sale price/year for Durham) |
 | Orange, NC (37135) | `pipeline.fetch.county.nc_orange` | ✅ | Yes |
-| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | ⚠️ | Yes |
+| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | ✅ | Yes (CamaParcels — value/owner/legal/lot; sale price + year built in companion tables, not yet joined) |
 | Johnston, NC (37101) | `pipeline.fetch.county.nc_johnston` | ✅ | Yes |
 
-**⚠️ counties** (Tarrant, Harris, Durham, Chatham): no public ArcGIS REST
-endpoint with a working spatial point-query has been identified for the
-full tax roll. The adapters are registered (so the registry is complete)
-but return a clean `service_url not configured` error and the pipeline
-keeps running. Update each module's `service_url` once a working
-endpoint is identified.
+All adapters above are now wired to a verified public ArcGIS REST
+endpoint. Coverage varies by what each county's public layer exposes
+(see each row's note) — e.g. Durham's statewide-layer record has no sale
+price or year built, and Chatham's sale/structure data lives in
+companion tables not yet joined. Where a field isn't published, the
+adapter simply omits that `Fact` and the pipeline continues.
 
 ---
 
