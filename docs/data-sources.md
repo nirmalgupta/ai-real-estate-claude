@@ -92,7 +92,7 @@ Implemented adapters (✅ = live-smoke verified, ⚠️ = registered but service
 | Wake, NC (37183) | `pipeline.fetch.county.nc_wake` | ✅ | Yes (NC disclosure) |
 | Durham, NC (37063) | `pipeline.fetch.county.nc_durham` | ✅ | Yes (NC OneMap statewide — value/owner/lot only; no sale price/year for Durham) |
 | Orange, NC (37135) | `pipeline.fetch.county.nc_orange` | ✅ | Yes |
-| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | ✅ | Yes (CamaParcels — value/owner/legal/lot; sale price + year built in companion tables, not yet joined) |
+| Chatham, NC (37037) | `pipeline.fetch.county.nc_chatham` | ✅ | Yes (CamaParcels + companion-table joins: latest valid sale price/date, year built + living area) |
 | Johnston, NC (37101) | `pipeline.fetch.county.nc_johnston` | ✅ | Yes |
 
 All adapters above are now wired to a verified public ArcGIS REST
