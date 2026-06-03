@@ -81,7 +81,7 @@ Implemented adapters (✅ = live-smoke verified, ⚠️ = registered but service
 | Travis, TX (48453) | `pipeline.fetch.county.tx_travis` | ✅ | No (TCAD public layer — partial, land value only) |
 | Williamson, TX (48491) | `pipeline.fetch.county.tx_williamson` | ✅ | No |
 | Hays, TX (48209) | `pipeline.fetch.county.tx_hays` | ✅ | No |
-| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | ✅ | No (HCAD gis.hctx.net — value/owner/legal/lot; no year built) |
+| Harris, TX (48201) | `pipeline.fetch.county.tx_harris` | ✅ | No (HCAD gis.hctx.net — value/owner/legal/lot; year built + living area joined from geohwp 2021 snapshot) |
 | Fort Bend, TX (48157) | `pipeline.fetch.county.tx_fortbend` | ✅ | No |
 | Montgomery, TX (48339) | `pipeline.fetch.county.tx_montgomery` | ✅ | No (parcel + owner + year built only — values not in public REST) |
 | Brazoria, TX (48039) | `pipeline.fetch.county.tx_brazoria` | ✅ | No |
